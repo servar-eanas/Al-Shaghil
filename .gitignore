@@ -1,0 +1,4 @@
+node_modules/
+.env
+saves.json
+.DS_Store
