@@ -618,10 +618,11 @@ function buildNpc(x,z,shirt,phase) {
   const zone = z > 15
     ? { minX:1.5,maxX:10.25,minZ:18.2,maxZ:26.0,step:.72 }
     : { minX:-6.9,maxX:6.9,minZ:-7.2,maxZ:13.0,step:.72 };
-  g.userData={phase,originX:x,originZ:z,targetX:x,targetZ:z,wait:.45+Math.random()*1.1,walkPhase:phase,npcArms,npcLegs,body,head,zone,path:[],pathIndex:0,behavior:z>15?'suspect':'shopper'};
+  g.userData={phase,originX:x,originZ:z,targetX:x,targetZ:z,wait:.45+Math.random()*1.1,walkPhase:phase,npcArms,npcLegs,body,head,zone,path:[],pathIndex:0,behavior:z>15?'suspect':'shopper',customerState:'waiting',customerTimer:1.5+Math.random()*2.4,customerProductKey:null,customerProductVisual:null,customerDoorX:x<0?-.75:.8};
+  if(z<15){const badge=labelSprite('زبون',{bg:'#294e3d',color:'#fff3d3',fontSize:32,width:220,height:76});badge.position.set(0,2.7,0);badge.scale.set(.78,.27,1);badge.userData.billboard=true;g.add(badge);g.userData.customerBadge=badge;}
   npcGroups.push(g); return g;
 }
-buildNpc(-4, 1.4, '#8eaf9d', 0.5); buildNpc(5, -3.1, '#d4a06f', 2.3);
+buildNpc(-0.75, 10.2, '#8eaf9d', 0.5); buildNpc(0.8, 10.65, '#d4a06f', 2.3);
 const robberNpc = buildNpc(6, 22, '#30343a', 9.3);
 robberNpc.userData.isRobber = true;
 robberNpc.userData.originX = 6; robberNpc.userData.originZ = 22;
@@ -2266,18 +2267,126 @@ function chooseNpcDestination(g,time=0) {
   }
   data.path=[];data.wait=.7;return false;
 }
+function npcRouteTo(g,x,z) {
+  const data=g.userData;
+  const path=findNpcPath(g.position.x,g.position.z,x,z,data.zone);
+  if(!path.length){data.path=[];data.pathIndex=0;return false;}
+  data.targetX=x;data.targetZ=z;data.path=path;data.pathIndex=0;data.wait=0;
+  return true;
+}
+function availableCustomerProducts() {
+  return itemKeys.filter(key=>{
+    const item=gameState.inventory?.[key];
+    if(!item||!gameState.fixtures?.shelves?.[key])return false;
+    const slots=Array.isArray(item.shelfSlots)?item.shelfSlots:Array.from({length:Number(item.shelf)||0},(_,i)=>i);
+    return slots.length>0;
+  });
+}
+function clearCustomerProduct(g) {
+  const data=g.userData,model=data.customerProductVisual;
+  if(model?.parent)model.parent.remove(model);
+  if(model)model.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  data.customerProductVisual=null;data.customerProductKey=null;
+}
+function showCustomerProduct(g,key) {
+  clearCustomerProduct(g);
+  const arm=g.userData.npcArms?.find(a=>a.side===1);
+  if(!arm?.elbow)return;
+  const model=makeProductModel(key);model.scale.set(.42,.42,.42);model.position.set(0,-.235,-.12);
+  arm.elbow.add(model);g.userData.customerProductVisual=model;g.userData.customerProductKey=key;
+}
+function customerRouteDone(data) {
+  return !data.path||data.pathIndex>=data.path.length;
+}
+function beginCustomerExit(g) {
+  const data=g.userData;
+  data.customerState='leaving';
+  if(!npcRouteTo(g,data.customerDoorX,10.2)){data.customerState='waiting';data.customerTimer=1.7;}
+}
+function purchaseFromCustomer(g) {
+  const data=g.userData,key=data.customerProductKey;
+  if(!key||!gameState.storeOpen||!gameState.fixtures?.register)return false;
+  const item=gameState.inventory?.[key];
+  const slots=Array.isArray(item?.shelfSlots)?[...item.shelfSlots]:Array.from({length:Number(item?.shelf)||0},(_,i)=>i);
+  if(!item||!slots.length)return false;
+  if(currentMode==='solo') {
+    slots.pop();item.shelfSlots=slots;item.shelf=slots.length;
+    const price=Math.max(0,Number(item.price)||0);
+    gameState.balance=(Number(gameState.balance)||0)+price;
+    gameState.totalSales=(Number(gameState.totalSales)||0)+price;
+    renderState(gameState);
+    return true;
+  }
+  if(currentMode==='multi'&&isRoomHost&&socket?.connected) {
+    socket.emit('game:action',{type:'sell',product:key,paymentMethod:'cash'},result=>{
+      if(result?.ok&&result.state)renderState(result.state);
+    });
+    return true;
+  }
+  return false;
+}
+function updateCustomerBehavior(g,dt,time) {
+  const data=g.userData;
+  // Only the room host can bill a shared customer in multiplayer.
+  if(currentMode==='multi'&&(!isRoomHost||!socket?.connected))return;
+  data.customerTimer=Math.max(0,(data.customerTimer||0)-dt);
+  switch(data.customerState) {
+    case 'waiting': {
+      if(!gameState.storeOpen){data.customerTimer=Math.max(data.customerTimer,.9);return;}
+      if(data.customerTimer>0)return;
+      const available=availableCustomerProducts().sort(()=>Math.random()-.5);
+      for(const key of available) {
+        const shelfIndex=itemKeys.indexOf(key),sx=shelfXs[shelfIndex];
+        const aisleX=sx+(shelfIndex===2?-.92:.92),aisleZ=3.15;
+        if(npcRouteTo(g,aisleX,aisleZ)){data.customerProductKey=key;data.customerState='toShelf';return;}
+      }
+      data.customerTimer=1.5+Math.random()*2;
+      return;
+    }
+    case 'toShelf':
+      if(customerRouteDone(data)){data.customerState='browsing';data.customerTimer=1.1+Math.random()*1.0;}
+      return;
+    case 'browsing':
+      if(data.customerTimer>0)return;
+      if(data.customerProductKey)showCustomerProduct(g,data.customerProductKey);
+      if(gameState.storeOpen&&gameState.fixtures?.register) {
+        if(npcRouteTo(g,-3.35,-5.05))data.customerState='toCheckout';
+        else beginCustomerExit(g);
+      } else beginCustomerExit(g);
+      return;
+    case 'toCheckout':
+      if(customerRouteDone(data)){data.customerState='checkingOut';data.customerTimer=1.15+Math.random()*.55;}
+      return;
+    case 'checkingOut':
+      if(data.customerTimer>0)return;
+      purchaseFromCustomer(g);
+      beginCustomerExit(g);
+      return;
+    case 'leaving':
+      if(customerRouteDone(data)){
+        clearCustomerProduct(g);
+        data.customerState='waiting';data.customerTimer=1.8+Math.random()*3.2;
+      }
+      return;
+    default:
+      data.customerState='waiting';data.customerTimer=1.2;
+  }
+}
+
 function updateAmbient(dt,time) {
   if(!active||paused||(currentMode!=='multi'&&currentMode!=='solo'))return;
   npcGroups.forEach((g,i)=>{
     if(!g.visible)return;
     const data=g.userData,zone=data.zone;
+    const managedShopper=data.behavior==='shopper'&&(currentMode==='solo'||(currentMode==='multi'&&isRoomHost&&socket?.connected));
+    if(managedShopper)updateCustomerBehavior(g,dt,time);
     data.wait=Math.max(0,(data.wait||0)-dt);
     let walking=false;
     const policeNear=data.behavior==='suspect'&&currentJob==='police'&&!isDriving&&distanceXZ(g.position.x,g.position.z,playerPosition.x,playerPosition.z)<8.5;
     if(policeNear&&(!data.fleeUntil||data.fleeUntil<=time)) {
       data.path=[];data.pathIndex=0;data.wait=0;
     }
-    if((!data.path||data.pathIndex>=data.path.length)&&data.wait<=0) {
+    if(!managedShopper&&(!data.path||data.pathIndex>=data.path.length)&&data.wait<=0) {
       chooseNpcDestination(g,time);
       if(!data.path?.length)data.wait=.6+Math.random()*1.2;
     }
@@ -2297,8 +2406,11 @@ function updateAmbient(dt,time) {
         const crowding=npcGroups.some(other=>other!==g&&other.visible&&Math.hypot(other.position.x-nx,other.position.z-nz)<.52);
         if(!crowding&&npcCanWalk(nx,nz,zone)) {
           g.position.x=nx;g.position.z=nz;walking=true;
-        } else if(!npcCanWalk(nx,nz,zone)||crowding) {
+        } else if(!npcCanWalk(nx,nz,zone)) {
           data.path=[];data.pathIndex=0;data.wait=.25+Math.random()*.4;
+        } else if(crowding) {
+          // Yield to nearby people without discarding the current shopping destination.
+          data.wait=.08;
         }
       }
     }
@@ -2329,6 +2441,7 @@ function animate(now) {
   for (const avatar of remoteAvatars.values()) {
     for (const tag of avatar.children) if (tag.userData?.billboard) tag.quaternion.copy(camera.quaternion);
   }
+  for(const npc of npcGroups)for(const tag of npc.children)if(tag.userData?.billboard)tag.quaternion.copy(camera.quaternion);
   if (selfAvatar) for (const tag of selfAvatar.children) if (tag.userData?.billboard) tag.quaternion.copy(camera.quaternion);
   renderer.render(scene,camera);
 }
