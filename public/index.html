@@ -171,6 +171,33 @@
   </main>
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
   <script src="/config.js"></script>
+  <script>
+    // If the module fails to download or execute, explain why the start screen is stuck.
+    window.addEventListener('error', function (event) {
+      if (!window.__SHAGHEEL_GAME_READY && event && event.message) {
+        const card = document.querySelector('.entryCard');
+        if (card && !document.getElementById('gameBootError')) {
+          const box = document.createElement('div');
+          box.id = 'gameBootError';
+          box.setAttribute('role', 'alert');
+          box.style.cssText = 'margin-top:14px;padding:12px;border:1px solid #e6a15b;border-radius:12px;background:#38291c;color:#ffe0b3;font:12px/1.8 sans-serif;overflow-wrap:anywhere';
+          box.textContent = 'خطأ أثناء تشغيل اللعبة: ' + event.message + ' — جرّب تحديث الصفحة، وإذا استمرت المشكلة أرسل هذه الرسالة.';
+          card.prepend(box);
+        }
+      }
+    }, true);
+    window.setTimeout(function () {
+      if (window.__SHAGHEEL_GAME_READY || document.getElementById('gameBootError')) return;
+      const card = document.querySelector('.entryCard');
+      if (!card) return;
+      const box = document.createElement('div');
+      box.id = 'gameBootError';
+      box.setAttribute('role', 'alert');
+      box.style.cssText = 'margin-top:14px;padding:12px;border:1px solid #e6a15b;border-radius:12px;background:#38291c;color:#ffe0b3;font:12px/1.8 sans-serif;overflow-wrap:anywhere';
+      box.textContent = 'ملفات اللعبة لم تبدأ خلال 12 ثانية؛ قد يكون ملف game.js لم يُحمّل. حدّث الصفحة، وإذا ظهرت هذه الرسالة مجددًا أرسل صورة لها.';
+      card.prepend(box);
+    }, 12000);
+  </script>
   <script type="module" src="/game.js"></script>
 </body>
 </html>
