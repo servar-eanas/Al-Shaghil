@@ -850,7 +850,8 @@ function normalizeGameState(state) {
   state.fixtures = { shelves:{water:false,chips:false,milk:false}, register:false, computer:false, cart:false, fridges:false, itBench:false, electronics:false, ...(state.fixtures || {}) };
   state.fixtures.shelves = {water:false,chips:false,milk:false, ...(state.fixtures.shelves || {})};
   if (!Number.isFinite(Number(state.gameMinutes))) state.gameMinutes = 8*60;
-  state.vehiclePose = {x:-8,z:18.6,rot:0, ...(state.vehiclePose || {})};
+  state.vehiclePose = {x:-54,z:42,rot:0, ...(state.vehiclePose || {})};
+  if (Math.abs(Number(state.vehiclePose.x)+8)<.01 && Math.abs(Number(state.vehiclePose.z)-18.6)<.01) { state.vehiclePose.x=-54; state.vehiclePose.z=42; }
   if (!Number.isInteger(Number(state.day))) state.day = 1;
   if (typeof state.storeOpen !== 'boolean') state.storeOpen = Number(state.gameMinutes) >= 480 && Number(state.gameMinutes) < 1320;
   if (state.storeManualOverride !== null && typeof state.storeManualOverride !== 'boolean') state.storeManualOverride = null;
@@ -1109,7 +1110,7 @@ function enterWorld(mode) {
   $('voiceStatus').textContent = mode === 'multi' ? 'الصوت مغلق' : 'وضع فردي';
   $('voiceStatus').classList.remove('on');
   // Keep the mouse free until the player clicks the world.
-  if (mode === 'solo') toast('بدأت بـ100$ ورفوف فارغة. افتح «كيف ألعب؟» لأي مساعدة.');
+  if (mode === 'solo') toast('بدأت بـ200$ ومعك رف مياه وحاسوب و6 عبوات بداية. افتح «كيف ألعب؟» لأي مساعدة.');
   renderJobAssignments();
   let tutorialSeen = false;
   try { tutorialSeen = localStorage.getItem('alshagheel-tutorial-seen-v1') === 'yes'; } catch {}
@@ -1612,7 +1613,7 @@ function startSoloWorld({ fresh = false } = {}) {
   clearRemotePlayers(); roomCode = ''; selfPlayerId = null; chatMessages = []; cartHolderId = 'solo'; cartPickedUp = false;
   if (cartBlocker) cartBlocker.active = true;
   renderState(gameState); setCameraFromPlayer({x:0,z:4.1,rot:0}); enterWorld('solo');
-  if (fresh) toast('بدأت حياة جديدة من الصفر: 100$، رفوف فارغة، ولا ديون.');
+  if (fresh) toast('بدأت حياة جديدة من الصفر: 200$ وتجهيزات بداية جاهزة، بلا ديون.');
 }
 $('soloButton').addEventListener('click', () => startSoloWorld({ fresh: false }));
 $('freshStartButton').addEventListener('click', () => startSoloWorld({ fresh: true }));
@@ -1620,7 +1621,7 @@ $('restartSoloButton').addEventListener('click', () => {
   if (currentMode !== 'solo') return toast('ابدأ حياة جديدة من شاشة البداية لإنشاء عالم فردي مستقل.');
   if (!window.confirm('متأكد أنك تريد حذف تقدم العالم الفردي والبدء من الصفر؟')) return;
   localStorage.removeItem(soloStorageKey); gameState = defaultGame(); playerCart = []; setHeldItem(null); cartPickedUp = false; cartHolderId = null; if (cartBlocker) cartBlocker.active = true; applyCartPose({x:6.35,z:4.05,rot:0}, false);
-  closePauseMenu(); setCameraFromPlayer({x:0,z:4.1,rot:0}); renderState(gameState); toast('تمت إعادة العالم إلى 100$ ورفوف فارغة.');
+  closePauseMenu(); setCameraFromPlayer({x:0,z:4.1,rot:0}); renderState(gameState); toast('تمت إعادة العالم إلى 200$ مع رف المياه والحاسوب و6 عبوات.');
 });
 $('createButton').addEventListener('click', () => createMultiRoom('create'));
 $('joinButton').addEventListener('click', () => createMultiRoom('join'));
