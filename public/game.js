@@ -157,6 +157,10 @@ const daySkyColor = new THREE.Color(0xb8d5d5);
 const duskSkyColor = new THREE.Color(0xd99075);
 const nightSkyColor = new THREE.Color(0x111d30);
 const currentSkyColor = new THREE.Color();
+const nightSunColor = new THREE.Color(0x9cadcc);
+const daySunColor = new THREE.Color(0xffe2b4);
+const nightGroundColor = new THREE.Color(0x1b2635);
+const dayGroundColor = new THREE.Color(0x8d795f);
 function mat(name, color, roughness = 0.82, extra = {}) {
   if (!mats[name]) mats[name] = new THREE.MeshStandardMaterial({ color, roughness, ...extra });
   return mats[name];
@@ -545,13 +549,13 @@ for (const x of [-90,-80,-50,-40,-31,-22,-9,9,22,31,40,50,80,90]) {
   cylinder(world, 'street lamp pole', x, 2.1, 14.2, 0.045, 0.06, 4.2, mat('lamp pole', '#505b53'), 8);
   box(world, 'street lamp arm', x + (x < 0 ? .34 : -.34), 4.12, 14.2, .75, .07, .07, mat('lamp arm', '#505b53'));
   box(world, 'lamp head', x + (x < 0 ? .68 : -.68), 4.02, 14.2, .42, .16, .22, mat('lamp glow', '#f4db9d', .45, { emissive: '#edc46f', emissiveIntensity: .45 }));
-  const glow=new THREE.PointLight(0xffd28c,0,17,2);glow.position.set(x+(x<0?.68:-.68),3.82,14.2);scene.add(glow);cityPointLights.push(glow);
+  if(cityPointLights.length<3){const glow=new THREE.PointLight(0xffd28c,0,17,2);glow.position.set(x+(x<0?.68:-.68),3.82,14.2);scene.add(glow);cityPointLights.push(glow);}
 }
 for(const lx of [-73,73])for(const z of [27,43,57]){
   cylinder(world,'avenue lamp pole',lx,2.05,z,.045,.06,4.1,mat('lamp pole','#505b53'),8);
   box(world,'avenue lamp arm',lx+(lx<0?.3:-.3),4.02,z,.7,.07,.07,mat('lamp arm','#505b53'));
   box(world,'avenue lamp head',lx+(lx<0?.62:-.62),3.93,z,.36,.15,.2,mat('lamp glow','#f4db9d',.45,{emissive:'#edc46f',emissiveIntensity:.45}));
-  const glow=new THREE.PointLight(0xffd28c,0,18,2);glow.position.set(lx+(lx<0?.62:-.62),3.75,z);scene.add(glow);cityPointLights.push(glow);
+  if(z===43){const glow=new THREE.PointLight(0xffd28c,0,18,2);glow.position.set(lx+(lx<0?.62:-.62),3.75,z);scene.add(glow);cityPointLights.push(glow);}
 }
 for (let i = 0; i < 28; i++) {
   const side = i % 2 ? -1 : 1;
@@ -834,6 +838,7 @@ function toast(message, ms = 2700) {
 function setHudVisible(show) {
   ['hudTop','storePanel','chatPanel','cartPanel','hudBottom','crosshair'].forEach(id => $(id).classList.toggle('hidden', !show));
   $('interactionPrompt').classList.add('hidden');
+  const sidebarButton = $('sidebarToggle'); if (sidebarButton) sidebarButton.setAttribute('aria-expanded', String(show));
   if ('ontouchstart' in window || navigator.maxTouchPoints > 0) $('touchControls').classList.toggle('hidden', !show);
 }
 function normalizeGameState(state) {
@@ -968,6 +973,8 @@ function formatGameClock(minutes = 480) {
 function updateClockUi(state = gameState) {
   const clockEl = $('clockValue');
   if (clockEl) clockEl.textContent = formatGameClock(state?.gameMinutes ?? 480);
+  const hour = (((Math.floor(Number(state?.gameMinutes)||480)%1440)+1440)%1440)/60;
+  const sunIcon = $('sunIcon'); if (sunIcon) sunIcon.textContent = hour >= 7 && hour < 17.5 ? '☀' : (hour >= 5 && hour < 7 || hour >= 17.5 && hour < 20.5) ? '🌇' : '☾';
   const dayEl = $('dayValue');
   if (dayEl) dayEl.textContent = String(Math.max(1, Number(state?.day) || 1)).padStart(2, '0');
   const open = !!state?.storeOpen;
@@ -1090,7 +1097,7 @@ function enterWorld(mode) {
   if (selfAvatar) selfAvatar.visible = cameraView === 'third';
   updateStoreButtonUi(gameState); updateClockUi(gameState);
   updateCameraPose();
-  $('worldLabel').textContent = mode === 'multi' ? `غرفة ${roomCode}` : 'حيّ الرمال · فردي';
+  $('worldLabel').textContent = mode === 'multi' ? `غرفة ${roomCode} · المدينة المفتوحة` : 'حيّ الرمال · المدينة المفتوحة';
   updateJobGuide(gameState, true);
   $('chatPanel').classList.toggle('mobileHidden', true);
   $('chatPanel').classList.toggle('hidden', true);
@@ -1349,6 +1356,13 @@ function renderJobAssignments() {
 function escapeUi(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function openJobModal() { if (!active) return; paused = true; renderJobAssignments(); $('jobModal').classList.remove('hidden'); if (document.pointerLockElement === canvas) document.exitPointerLock?.(); }
 function closeJobModal() { $('jobModal').classList.add('hidden'); resumeWorldIfNoModal(); }
+function setStorePanelVisible(show) {
+  const panel=$('storePanel'),button=$('sidebarToggle');
+  panel.classList.toggle('hidden',!show);
+  if(button){button.setAttribute('aria-expanded',String(!!show));button.title=show?'إغلاق الشريط الجانبي':'فتح الشريط الجانبي';button.classList.toggle('active',!!show);}
+}
+$('sidebarToggle').addEventListener('click',()=>setStorePanelVisible($('storePanel').classList.contains('hidden')));
+$('storePanelClose').addEventListener('click',()=>setStorePanelVisible(false));
 $('jobToggle').addEventListener('click', openJobModal);
 $('tutorialJobButton').addEventListener('click', () => { closeTutorial(); openJobModal(); });
 $('jobsPauseButton').addEventListener('click', () => { closePauseMenu(); openJobModal(); });
@@ -1979,7 +1993,7 @@ function isBlockedPosition(x, z) {
 }
 function isVehicleBlockedPosition(x,z) {
   const halfX=1.85, halfZ=.88;
-  if (x-halfX < -58 || x+halfX > 58 || z-halfZ < -52 || z+halfZ > 57) return true;
+  if (x-halfX < -98 || x+halfX > 98 || z-halfZ < -88 || z+halfZ > 92) return true;
   return worldBlockers.some(b => b.id !== 'police-car' && b.id !== 'shopping-cart' && b.active !== false && x+halfX>b.minX && x-halfX<b.maxX && z+halfZ>b.minZ && z-halfZ<b.maxZ);
 }
 function applyVehiclePose(pose, persist=false) {
@@ -1994,7 +2008,7 @@ function applyVehiclePose(pose, persist=false) {
 }
 function isCartBlockedPosition(x, z) {
   const halfX = .62, halfZ = .70;
-  if (x-halfX < -58 || x+halfX > 58 || z-halfZ < -52 || z+halfZ > 57) return true;
+  if (x-halfX < -98 || x+halfX > 98 || z-halfZ < -88 || z+halfZ > 92) return true;
   return worldBlockers.some(b => b.id !== 'shopping-cart' && b.active !== false && x+halfX > b.minX && x-halfX < b.maxX && z+halfZ > b.minZ && z-halfZ < b.maxZ);
 }
 
@@ -2560,11 +2574,38 @@ function updateAmbient(dt,time) {
     if(data.head)data.head.rotation.y=walking?0:Math.sin(time*.65+data.phase)*.07;
   });
 }
+function updateDayNight() {
+  const minutes=((Math.floor(Number(gameState?.gameMinutes)||480)%1440)+1440)%1440;
+  const hour=minutes/60;
+  const smooth=(a,b,x)=>{const t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+  const daylight=Math.min(smooth(5.2,8,hour),1-smooth(16.5,19.4,hour));
+  const dawn=smooth(4.6,5.8,hour)*(1-smooth(6.7,8,hour));
+  const dusk=smooth(16.4,17.8,hour)*(1-smooth(18.8,20.3,hour));
+  const twilight=Math.max(dawn,dusk);
+  if(hour<5)currentSkyColor.copy(nightSkyColor);
+  else if(hour<6.6)currentSkyColor.lerpColors(nightSkyColor,duskSkyColor,smooth(5,6.6,hour));
+  else if(hour<8)currentSkyColor.lerpColors(duskSkyColor,daySkyColor,smooth(6.6,8,hour));
+  else if(hour<16.5)currentSkyColor.copy(daySkyColor);
+  else if(hour<18.5)currentSkyColor.lerpColors(daySkyColor,duskSkyColor,smooth(16.5,18.5,hour));
+  else if(hour<20.2)currentSkyColor.lerpColors(duskSkyColor,nightSkyColor,smooth(18.5,20.2,hour));
+  else currentSkyColor.copy(nightSkyColor);
+  scene.background.copy(currentSkyColor);scene.fog.color.copy(currentSkyColor);
+  hemi.intensity=.3+daylight*1.7+twilight*.42;
+  hemi.groundColor.copy(nightGroundColor).lerp(dayGroundColor,daylight);
+  sun.intensity=.12+daylight*2.9+twilight*.58;
+  sun.color.copy(nightSunColor).lerp(daySunColor,Math.min(1,daylight+twilight*.7));
+  const angle=(hour-6)/12*Math.PI;
+  sun.position.set(Math.cos(angle)*66,8+Math.sin(angle)*62,28);
+  sun.castShadow=daylight>.12;
+  for(const light of cityPointLights){light.intensity=.02+(1-daylight)*1.25+twilight*.12;light.visible=light.intensity>.18;}
+  const lampMat=mats['lamp glow'];if(lampMat)lampMat.emissiveIntensity=.03+(1-daylight)*.36+twilight*.16;
+  for(const windowMat of nightWindowMaterials)windowMat.emissiveIntensity=(1-daylight)*.5+twilight*.12;
+}
 let lastFrame=performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dt=Math.min(.04,(now-lastFrame)/1000); lastFrame=now;
-  updateMovement(dt); updateShoppingCart(dt); updateAmbient(dt,now/1000); updateNearestInteraction(); updateJobGuide();
+  updateMovement(dt); updateShoppingCart(dt); updateAmbient(dt,now/1000); updateDayNight(); updateNearestInteraction(); updateJobGuide();
   // Keep remote avatars readable as the camera moves.
   for (const avatar of remoteAvatars.values()) {
     for (const tag of avatar.children) if (tag.userData?.billboard) tag.quaternion.copy(camera.quaternion);
