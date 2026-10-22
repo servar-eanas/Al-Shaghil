@@ -27,6 +27,7 @@
         <button class="iconButton" id="jobToggle" title="الوظائف والزي">💼<small>الوظائف</small></button>
         <button class="iconButton" id="viewToggle" title="تغيير منظور الكاميرا">🎥<small id="viewLabel">منظور أول</small></button>
         <button class="iconButton hidden" id="vehicleExit" title="الخروج من سيارة الدورية">🚓<small>خروج من السيارة</small></button>
+        <button class="iconButton" id="shortcutsToggle" title="اختصارات لوحة المفاتيح">⌨️<small>الاختصارات</small></button>
         <button class="iconButton helpButton" id="helpToggle" title="شرح طريقة اللعب">❔<small>كيف ألعب؟</small></button>
         <button class="iconButton" id="menuButton" title="القائمة">☰<small>القائمة</small></button>
       </div>
@@ -66,7 +67,7 @@
     <div id="toast" class="toast" role="status"></div>
 
     <footer id="hudBottom" class="hud hidden">
-      <div class="controlHint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>للحركة</span><i></i><kbd>Mouse</kbd><span>للنظر</span><i></i><kbd>E</kbd><span>للتفاعل</span><i></i><kbd>F</kbd><span>لالتقاط</span></div>
+      <div class="controlHint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>حركة</span><i></i><kbd>Shift</kbd><span>ركض</span><i></i><kbd>E</kbd><span>تفاعل</span><i></i><kbd>F</kbd><span>التقاط</span><i></i><kbd>B</kbd><span>تجهيزات</span><i></i><kbd>J</kbd><span>وظائف</span></div>
       <div class="worldStatus"><span class="sunIcon">☀</span><span>اليوم <b id="dayValue">01</b></span><span class="statusDivider"></span><span class="clockValue" id="clockValue">08:00</span><span class="statusDivider"></span><span id="storeStatusValue">الدكان مفتوح</span><span class="statusDivider"></span><span id="worldLabel">حيّ الرمال</span></div>
     </footer>
 
@@ -168,6 +169,30 @@
       </div>
     </section>
 
+    <section id="shortcutsModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
+      <div class="smallModal shortcutModal">
+        <button class="closeButton modalX" id="shortcutsClose" aria-label="إغلاق الاختصارات">×</button>
+        <div class="modalIcon">⌨️</div><small>تحكم سريع</small><h2 id="shortcutsTitle">اختصارات اللعبة</h2>
+        <p>تعمل الاختصارات أثناء اللعب عندما لا تكون تكتب في خانة نصية.</p>
+        <div class="shortcutGrid">
+          <div><kbd>W A S D</kbd><span>الحركة</span></div>
+          <div><kbd>Shift</kbd><span>الركض / تسريع السيارة</span></div>
+          <div><kbd>Mouse</kbd><span>تحريك الكاميرا والنظر</span></div>
+          <div><kbd>E</kbd><span>التفاعل مع أقرب شيء</span></div>
+          <div><kbd>F</kbd><span>التقاط المنتج الموجّه إليه</span></div>
+          <div><kbd>G</kbd><span>إرجاع المنتج الذي بيدك</span></div>
+          <div><kbd>V</kbd><span>تبديل منظور الكاميرا</span></div>
+          <div><kbd>B</kbd><span>فتح كتالوج التجهيزات</span></div>
+          <div><kbd>J</kbd><span>قائمة الوظائف</span></div>
+          <div><kbd>C</kbd><span>الدردشة في الغرفة الجماعية</span></div>
+          <div><kbd>K</kbd><span>فتح عربة التسوق</span></div>
+          <div><kbd>H</kbd><span>شرح طريقة اللعب</span></div>
+          <div><kbd>1 / 2 / 3</kbd><span>المياه / الشيبس / الحليب</span></div>
+          <div><kbd>Esc</kbd><span>القائمة أو إغلاق النافذة المفتوحة</span></div>
+        </div>
+        <button class="primaryButton fullWidth shortcutDone" id="shortcutsDone">تمام، رجوع للعبة</button>
+      </div>
+    </section>
     <section id="pauseMenu" class="modalOverlay hidden"><div class="smallModal"><button class="closeButton modalX" id="resumeX">×</button><div class="modalIcon">⏸</div><small>قائمة العالم</small><h2>خذ نفساً، العالم إلك</h2><p>تقدر تكمل لعبك أو ترجع لشاشة البداية.</p><button class="primaryButton fullWidth" id="resumeButton">متابعة اللعب</button><button class="secondaryButton fullWidth" id="viewPauseButton">تبديل منظور الكاميرا</button><button class="secondaryButton fullWidth" id="jobsPauseButton">الوظائف والزي</button><button class="secondaryButton fullWidth" id="restartSoloButton">إعادة الحياة من الصفر</button><button class="secondaryButton fullWidth" id="leaveButton">الخروج من العالم</button></div></section>
   </main>
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
