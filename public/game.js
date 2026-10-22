@@ -1,5 +1,42 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-
+// Load Three.js with a fallback CDN so a single blocked CDN cannot freeze the whole menu.
+let THREE;
+try {
+  THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+} catch (primaryImportError) {
+  try {
+    THREE = await import('https://unpkg.com/three@0.160.0/build/three.module.js');
+  } catch (fallbackImportError) {
+    const detail = fallbackImportError?.message || primaryImportError?.message || 'Unknown module-loading error';
+    window.__SHAGHEEL_GAME_INIT_ERROR = detail;
+    const card = document.querySelector('.entryCard');
+    if (card) {
+      const box = document.createElement('div');
+      box.id = 'gameBootError';
+      box.setAttribute('role', 'alert');
+      box.style.cssText = 'margin-top:14px;padding:12px;border:1px solid #e6a15b;border-radius:12px;background:#38291c;color:#ffe0b3;font:12px/1.8 sans-serif;overflow-wrap:anywhere';
+      box.textContent = 'تعذّر تحميل محرك الرسومات. جرّب تحديث الصفحة أو شبكة إنترنت أخرى. التفاصيل: ' + detail;
+      card.prepend(box);
+    }
+    throw fallbackImportError;
+  }
+}
+function showGameInitError(error) {
+  const detail = error?.stack || error?.message || String(error);
+  window.__SHAGHEEL_GAME_INIT_ERROR = detail;
+  console.error('الشغيل initialization failed:', error);
+  const card = document.querySelector('.entryCard');
+  if (!card || document.getElementById('gameBootError')) return;
+  const box = document.createElement('div');
+  box.id = 'gameBootError';
+  box.setAttribute('role', 'alert');
+  box.style.cssText = 'margin-top:14px;padding:12px;border:1px solid #e6a15b;border-radius:12px;background:#38291c;color:#ffe0b3;font:12px/1.8 sans-serif;overflow-wrap:anywhere';
+  box.textContent = 'اللعبة لم تكتمل عملية تشغيلها، لذلك قد لا تستجيب الأزرار. أرسل هذه الرسالة للدعم: ' + (error?.message || String(error));
+  card.prepend(box);
+}
+window.addEventListener('error', event => {
+  if (!window.__SHAGHEEL_GAME_READY && event?.error) showGameInitError(event.error);
+});
+try {
 const $ = (id) => document.getElementById(id);
 const canvas = $('gameCanvas');
 const moneyFmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-US');
@@ -2069,3 +2106,8 @@ window.addEventListener('resize', () => {
 setHudVisible(false);
 $('chatPanel').classList.add('hidden');
 renderState(gameState);
+
+window.__SHAGHEEL_GAME_READY = true;
+} catch (gameInitError) {
+  showGameInitError(gameInitError);
+}
