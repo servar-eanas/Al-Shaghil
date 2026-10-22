@@ -55,6 +55,7 @@ const defaultGame = () => ({
 });
 // New major save key + schema reset any $10,000-era test saves to the fair $100 start.
 const soloStorageKey = 'alshagheel-solo-save-v9';
+const soloJobStorageKey = 'alshagheel-solo-job-v1';
 let gameState = defaultGame();
 let currentMode = 'none'; // none | solo | multi
 let roomCode = '';
@@ -114,6 +115,7 @@ let yaw = 0;
 let pitch = 0;
 let elapsed = 0;
 let localNoticeCooldown = 0;
+let lastJobGuideAt = 0;
 // Keep collision storage initialized before any UI/state setup can inspect it.
 const worldBlockers = [];
 
@@ -408,7 +410,8 @@ function buildJobStation(title, x, z, accent, kind) {
   box(g, `${kind} roof`, x, 3.08, z, 4.9, .18, 3.8, mat(`${kind} roof`, accent, .75));
   for (const xx of [x-2.2,x+2.2]) box(g, `${kind} post`, xx, 1.52, z+.95, .16, 2.9, .16, mat(`${kind} post material`, accent, .65));
   box(g, `${kind} counter`, x, .72, z-.72, 2.25, 1.15, .68, mat(`${kind} counter material`, '#785d46', .86));
-  const sign=labelSprite(title,{bg:accent,color:'#fff8e9',fontSize:38,width:480,height:110});sign.position.set(x,2.55,z-1.41);sign.scale.set(2.25,.52,1);g.add(sign);
+  const sign=labelSprite(title,{bg:accent,color:'#fff8e9',fontSize:46,width:600,height:132});sign.position.set(x,2.62,z-1.41);sign.scale.set(2.85,.62,1);g.add(sign);
+  const marker=labelSprite('موقع الوظيفة · اقترب واضغط E',{bg:'#172b25ee',color:'#fff0bc',fontSize:30,width:560,height:88});marker.position.set(x,3.78,z+.18);marker.scale.set(2.8,.44,1);g.add(marker);
   if (kind === 'mechanic') {
     box(g,'car lift base',x, .18, z+.25, 2.1,.22,2.25,mat('lift base','#363f3e',.65));
     for (const xx of [x-.85,x+.85]) box(g,'car lift post',xx,1.05,z+.25,.13,1.85,.13,mat('lift post',accent,.56,{metalness:.25}));
@@ -573,13 +576,14 @@ function buildNpc(x,z,shirt,phase) {
   const hair = new THREE.Mesh(new THREE.SphereGeometry(.178,12,8,0,Math.PI*2,0,Math.PI*.48),mat(`npc hair ${phase}`,'#39332c',.98)); hair.position.set(0,1.61,-.015); hair.castShadow=true; g.add(hair);
   addFacialDetails(g, skin, `npc-${phase}`);
   const limb = (name, x1,y1,z1,x2,y2,z2,r,material) => { const a=new THREE.Vector3(x1,y1,z1), b=new THREE.Vector3(x2,y2,z2), d=b.clone().sub(a); const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,Math.max(.06,d.length()-r*2),4,8),material); mesh.position.copy(a.add(b).multiplyScalar(.5)); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); mesh.castShadow=true; mesh.name=name; g.add(mesh); return mesh; };
+  const npcArms = [], npcLegs = [];
   for (const side of [-1,1]) {
-    limb('npc arm',side*.21,1.2,0,side*.31,.73,-.025,.075,shirtMat);
+    npcArms.push(limb('npc arm',side*.21,1.2,0,side*.31,.73,-.025,.075,shirtMat));
     const hand = new THREE.Mesh(new THREE.SphereGeometry(.065,10,8),skin); hand.position.set(side*.31,.69,-.025); hand.castShadow=true; g.add(hand);
-    limb('npc leg',side*.105,.62,0,side*.12,.19,.01,.09,pants);
+    npcLegs.push(limb('npc leg',side*.105,.62,0,side*.12,.19,.01,.09,pants));
     const shoe=box(g,'npc shoe',side*.12,.1,-.04,.15,.18,.28,mat(`npc shoe ${phase}`,'#282c2b',.95));
   }
-  g.position.set(x,0,z); g.userData={phase,originX:x,originZ:z}; npcGroups.push(g); return g;
+  g.position.set(x,0,z); g.userData={phase,originX:x,originZ:z,targetX:x,targetZ:z,wait:0,walkPhase:phase,npcArms,npcLegs}; npcGroups.push(g); return g;
 }
 buildNpc(-4, 1.4, '#8eaf9d', 0.5); buildNpc(5, -3.1, '#d4a06f', 2.3);
 const robberNpc = buildNpc(6, 22, '#30343a', 9.3);
@@ -929,6 +933,7 @@ function renderState(state) {
   }
   $('syncDot').style.background = currentMode === 'multi' ? '#79c6a5' : '#e9bd75';
   $('syncDot').title = currentMode === 'multi' ? 'متزامن مع الغرفة' : 'حفظ محلي';
+  updateJobGuide(state, true);
 }
 function enterWorld(mode) {
   currentMode = mode;
@@ -955,6 +960,7 @@ function enterWorld(mode) {
   updateStoreButtonUi(gameState); updateClockUi(gameState);
   updateCameraPose();
   $('worldLabel').textContent = mode === 'multi' ? `غرفة ${roomCode}` : 'حيّ الرمال · فردي';
+  updateJobGuide(gameState, true);
   $('chatPanel').classList.toggle('mobileHidden', true);
   $('chatPanel').classList.toggle('hidden', true);
   $('cartPanel').classList.add('hidden');
@@ -1114,12 +1120,51 @@ function appendJoinResult(result) {
   addSystemChat(`أنت الآن في غرفة ${roomCode}. ${isRoomHost ? 'أنت منشئ الغرفة وتستطيع توزيع الوظائف وفتح/إغلاق الدكان.' : 'منشئ الغرفة يحدد وظائف اللاعبين.'}`);
   return true;
 }
+function updateJobGuide(state = gameState, force = false) {
+  const title = $('jobGuideTitle'), text = $('jobGuideText');
+  if (!title || !text) return;
+  const now = performance.now();
+  if (!force && now - lastJobGuideAt < 450) return;
+  lastJobGuideAt = now;
+  const job = JOBS[currentJob] || JOBS.unassigned;
+  title.textContent = `${job.icon} ${job.label} · هدفك الآن`;
+  if (currentJob === 'shopkeeper') {
+    const shelfReady = itemKeys.some(key => !!state.fixtures?.shelves?.[key]);
+    const anyGoods = itemKeys.some(key => (Number(state.inventory?.[key]?.stock) || 0) + (Number(state.inventory?.[key]?.shelf) || 0) > 0);
+    if (!state.fixtures?.computer) text.textContent = '١) افتح «شراء تجهيزات وبناء الدكان» واشترِ حاسوب الإدارة بـ$15. زر شراء البضاعة يفتح الكتالوج تلقائياً إذا كان الحاسوب غير موجود.';
+    else if (!shelfReady) text.textContent = '٢) اختر صنفاً من القائمة ثم اشترِ رفّه بـ$25. بعد ذلك اطلب بضاعة من زر «شراء بضاعة للمخزن».';
+    else if (!anyGoods) text.textContent = '٣) اختر الصنف ثم اضغط «شراء بضاعة للمخزن». خذ القطع من المخزن وضعها على الرف الذي يحمل الصنف نفسه.';
+    else if (!state.fixtures?.register) text.textContent = '٤) جهّز الرف والبضاعة، ثم اشترِ الكاشير بـ$20 لتبيع المنتجات وتنجز مهام صاحب الدكان.';
+    else text.textContent = 'التقط قطعة من الرف أو عبّئه من المخزن. عند الكاشير اضغط E لبيع قطعة أو لمحاسبة العربة. يمكنك إنجاز مهمة صاحب الدكان عند الكاشير.';
+    return;
+  }
+  const spots = {
+    mechanic: { label: 'ورشة الميكانيك', x: -34, z: 11.25 },
+    it: { label: 'مركز تقنية المعلومات', x: 22, z: 12.25 },
+    electronics: { label: 'محل الإلكترونيات', x: 34, z: 11.55 },
+    delivery: { label: 'مستودع التوصيل', x: -42, z: 11.25 },
+    criminal: { label: 'شحنة الإلكترونيات', x: 13, z: 23.3 }
+  };
+  if (currentJob === 'police') {
+    const x = robberNpc?.position.x ?? 6, z = robberNpc?.position.z ?? 22;
+    text.textContent = robberNpc?.visible ? `اتجه إلى المشتبه به في الشارع (المسافة التقريبية ${Math.round(distanceXZ(playerPosition.x, playerPosition.z, x, z))} م)، اقترب منه ثم اضغط E أو زر «تفاعل».` : 'تم التعامل مع المشتبه به. انتظر حتى يعود إلى الشارع ثم اقترب منه لإنجاز بلاغ جديد.';
+    return;
+  }
+  const spot = spots[currentJob];
+  if (spot) {
+    const distance = Math.round(distanceXZ(playerPosition.x, playerPosition.z, spot.x, spot.z));
+    const verbs = { mechanic: 'اقترب من المركبة في الورشة لإتمام الصيانة', it: 'اقترب من محطة الحاسوب لإصلاحه', electronics: 'اقترب من طاولة الأجهزة لإتمام الصيانة', delivery: 'اقترب من نقطة التوصيل لتسليم الطلب', criminal: 'اقترب من الشحنة لسرقتها وستصبح مطلوباً للشرطة' };
+    text.textContent = `الموقع: ${spot.label} · المسافة ${distance} م. ${verbs[currentJob] || 'اقترب من علامة المهمة'}؛ ثم اضغط E أو «تفاعل».`;
+  } else text.textContent = 'افتح قائمة الوظائف لاختيار مهنة، ثم اتبع علامة موقع العمل في الحارة.';
+}
+
 function setSoloJob(job) {
   if (!JOBS[job] || job === 'unassigned') return;
   if (currentMode === 'multi') return toast('في اللعب الجماعي، منشئ الغرفة هو الذي يوزّع الوظائف.');
   currentJob = job;
+  try { localStorage.setItem(soloJobStorageKey, job); } catch {}
   $('jobValue').textContent = `${JOBS[job].icon} ${JOBS[job].label}`;
-  refreshSelfAvatar(); renderJobAssignments();
+  refreshSelfAvatar(); renderJobAssignments(); updateJobGuide(gameState, true);
   toast(`تم اختيار وظيفة ${JOBS[job].label}؛ زيّك تغيّر.`);
 }
 function renderJobAssignments() {
@@ -1165,12 +1210,14 @@ function escapeUi(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':
 function openJobModal() { if (!active) return; paused = true; renderJobAssignments(); $('jobModal').classList.remove('hidden'); if (document.pointerLockElement === canvas) document.exitPointerLock?.(); }
 function closeJobModal() { $('jobModal').classList.add('hidden'); if (active && $('tutorialModal').classList.contains('hidden') && $('upgradesModal').classList.contains('hidden') && $('paymentModal').classList.contains('hidden') && $('pauseMenu').classList.contains('hidden')) paused = false; }
 $('jobToggle').addEventListener('click', openJobModal);
+$('tutorialJobButton').addEventListener('click', () => { closeTutorial(); openJobModal(); });
 $('jobsPauseButton').addEventListener('click', () => { closePauseMenu(); openJobModal(); });
 $('jobsClose').addEventListener('click', closeJobModal);
 $('viewToggle').addEventListener('click', () => setCameraView(cameraView === 'first' ? 'third' : 'first'));
 $('viewPauseButton').addEventListener('click', () => setCameraView(cameraView === 'first' ? 'third' : 'first'));
 $('storeToggle').addEventListener('click', toggleStoreOpen);
 $('storeSchedule').addEventListener('click', resetStoreSchedule);
+$('buildButton').addEventListener('click', openUpgradesModal);
 $('vehicleExit').addEventListener('click', exitVehicle);
 $('buildShelf').addEventListener('click', () => { closeUpgradesModal(); performAction('build', selectedProduct, { fixtureType: 'shelf' }); });
 $('buildRegister').addEventListener('click', () => { closeUpgradesModal(); performAction('build', selectedProduct, { fixtureType: 'register' }); });
@@ -1246,7 +1293,7 @@ function performJobTask(job) {
   }
   const now = Date.now();
   if (now - localJobCooldown < 5000) return toast('خذ وقتك، المهمة التالية بعد قليل.');
-  const locations = { mechanic:[-34,11.25], it:[22,12.25], electronics:[34,11.55], delivery:[-42,11.25], criminal:[13,23.3] };
+  const locations = { shopkeeper:[-3.85,-5.15], mechanic:[-34,11.25], it:[22,12.25], electronics:[34,11.55], delivery:[-42,11.25], criminal:[13,23.3] };
   if (job === 'police') {
     if (!robberNpc?.visible || distanceXZ(playerPosition.x, playerPosition.z, robberNpc.position.x, robberNpc.position.z) > 3.7) return toast('اقترب من المشتبه به في الشارع ثم اضغط E.');
     robberNpc.visible = false; setTimeout(() => { robberNpc.visible = true; }, 14000);
@@ -1255,7 +1302,7 @@ function performJobTask(job) {
     if (distanceXZ(playerPosition.x, playerPosition.z, x, z) > 4.0) return toast('اقترب من موقع عملك المبيّن في الحارة.');
   }
   localJobCooldown = now;
-  const rewards = { mechanic:28, it:32, electronics:30, delivery:24, police:40, criminal:25 };
+  const rewards = { shopkeeper:16, mechanic:28, it:32, electronics:30, delivery:24, police:40, criminal:25 };
   if (job === 'criminal') { toast('سرقت شحنة إلكترونيات! صرت مطلوباً للشرطة.'); selfAvatar?.userData && (selfAvatar.userData.wanted = true); if (selfAvatar) { scene.remove(selfAvatar); selfAvatar = makeAvatar(playerName, JOBS.criminal.color, 'criminal', true); selfAvatar.position.copy(playerPosition); selfAvatar.visible = cameraView === 'third'; scene.add(selfAvatar); } currentJob = 'criminal'; }
   gameState.balance += rewards[job] || 20; gameState.totalSales += rewards[job] || 20;
   renderState(gameState); toast(`${JOBS[job].label}: أنجزت المهمة وأضفت ${moneyFmt(rewards[job] || 20)} إلى خزنة العالم.`);
@@ -1396,7 +1443,9 @@ function createMultiRoom(type) {
 }
 function startSoloWorld({ fresh = false } = {}) {
   playerName = $('playerName').value.trim().slice(0,18) || 'لاعب';
-  currentJob = 'shopkeeper'; isRoomHost = false; roomHostId = null; roomPlayers = [];
+  currentJob = 'shopkeeper';
+  if (!fresh) { try { const savedJob = localStorage.getItem(soloJobStorageKey); if (JOBS[savedJob] && savedJob !== 'unassigned') currentJob = savedJob; } catch {} }
+  isRoomHost = false; roomHostId = null; roomPlayers = [];
   try {
     if (fresh) localStorage.removeItem(soloStorageKey);
     const saved = JSON.parse(localStorage.getItem(soloStorageKey) || 'null');
@@ -1627,7 +1676,7 @@ function performAction(type, product = selectedProduct, extra = {}) {
   renderState(state); toast(message); updateCartUI(); renderHeldVisual();
 }
 $('orderButton').addEventListener('click', () => {
-  if (!gameState.fixtures?.computer) return toast('اشترِ حاسوب الإدارة أولاً من «شراء تجهيزات وبناء الدكان».');
+  if (!gameState.fixtures?.computer) { openUpgradesModal(); toast('أول خطوة: اشترِ حاسوب الإدارة بـ$15، ثم ارجع لشراء البضاعة.'); return; }
   if (!gameState.storeOpen) return toast('الدكان مغلق حالياً. افتحه أو فعّل الدوام التلقائي.');
   openPaymentModal('order', selectedProduct);
 });
@@ -1816,6 +1865,7 @@ const targets = [
   { id:'shelf-milk', label:'رف الألبان', x:5.02, z:-0.55, type:'shelf', product:'milk' },
   { id:'shopping-cart', label:'عربة التسوق', x:6.35, z:4.05, type:'cart' },
   { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-8, z:20.15, type:'vehicle', job:'police' },
+  { id:'job-shopkeeper', label:'الكاشير — إدارة أعمال الدكان', x:-3.85, z:-5.15, type:'jobTask', job:'shopkeeper', icon:'🧾' },
   { id:'job-mechanic', label:'ورشة الميكانيك — صيانة مركبة', x:-34, z:11.25, type:'jobTask', job:'mechanic', icon:'🔧' },
   { id:'job-it', label:'مكتب تقنية المعلومات — إصلاح حاسوب', x:22, z:12.25, type:'jobTask', job:'it', icon:'💻' },
   { id:'job-electronics', label:'محل الإلكترونيات — صيانة جهاز', x:34, z:11.55, type:'jobTask', job:'electronics', icon:'📱' },
@@ -1898,6 +1948,7 @@ function updateNearestInteraction() {
     if (t.type === 'shelf' && !gameState.fixtures?.shelves?.[t.product]) continue;
     if (t.type === 'stock' && !(gameState.inventory?.[t.product]?.stock > 0)) continue;
     if (t.type === 'register' && !gameState.fixtures?.register) continue;
+    if (t.type === 'jobTask' && t.job === 'shopkeeper' && !gameState.fixtures?.register) continue;
     if (t.type === 'order' && !gameState.fixtures?.computer) continue;
     if (t.type === 'cart' && !gameState.fixtures?.cart) continue;
     if (t.type === 'jobTask' && t.job === 'police' && robberNpc) { t.x = robberNpc.position.x; t.z = robberNpc.position.z; }
@@ -2073,22 +2124,46 @@ function updateMovement(dt) {
 }
 
 function updateAmbient(dt, time) {
-  npcGroups.forEach((g,i)=>{
-    if (currentMode !== 'multi' && currentMode !== 'solo') return;
+  if (!active || paused || (currentMode !== 'multi' && currentMode !== 'solo')) return;
+  npcGroups.forEach((g, i) => {
     if (!g.visible) return;
-    // Gentle patrols; the suspect moves within a small street area for police missions.
-    const phase=time*.28+g.userData.phase;
-    const nx=g.userData.originX+Math.sin(phase)*(g.userData.isRobber ? 2.0 : .24);
-    const nz=g.userData.originZ+Math.cos(phase*.7)*(g.userData.isRobber ? 1.35 : .85);
-    g.position.x=nx; g.position.z=nz;
-    if (g.children[0]) g.children[0].position.y=.82+Math.sin(time*4+i)*.018;
+    const data = g.userData;
+    data.wait = Math.max(0, (data.wait || 0) - dt);
+    const dx = (data.targetX ?? data.originX) - g.position.x;
+    const dz = (data.targetZ ?? data.originZ) - g.position.z;
+    const distance = Math.hypot(dx, dz);
+    let walking = false;
+    if (distance < .28) {
+      if (data.wait <= 0) {
+        const radiusX = data.isRobber ? 4.2 : 1.7;
+        const radiusZ = data.isRobber ? 2.8 : 1.25;
+        data.targetX = data.originX + (Math.random() * 2 - 1) * radiusX;
+        data.targetZ = data.originZ + (Math.random() * 2 - 1) * radiusZ;
+        data.wait = .25 + Math.random() * 1.15;
+      }
+    } else if (data.wait <= 0) {
+      const desiredYaw = Math.atan2(-dx, -dz);
+      let turn = desiredYaw - g.rotation.y;
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+      g.rotation.y += turn * Math.min(1, dt * 4.5);
+      const speed = data.isRobber ? 1.05 : .72 + (i % 2) * .16;
+      const step = Math.min(distance, speed * dt);
+      g.position.x += dx / distance * step;
+      g.position.z += dz / distance * step;
+      data.walkPhase = (data.walkPhase || data.phase) + dt * (data.isRobber ? 8 : 6.2);
+      walking = true;
+    }
+    const swing = walking ? Math.sin(data.walkPhase) * .24 : 0;
+    for (let n = 0; n < (data.npcLegs || []).length; n++) data.npcLegs[n].rotation.z = n === 0 ? swing : -swing;
+    for (let n = 0; n < (data.npcArms || []).length; n++) data.npcArms[n].rotation.z = n === 0 ? -swing * .65 : swing * .65;
+    if (g.children[0]) g.children[0].position.y = .82 + Math.abs(Math.sin(data.walkPhase || time)) * (walking ? .025 : .008);
   });
 }
 let lastFrame=performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dt=Math.min(.04,(now-lastFrame)/1000); lastFrame=now;
-  updateMovement(dt); updateShoppingCart(dt); updateAmbient(dt,now/1000); updateNearestInteraction();
+  updateMovement(dt); updateShoppingCart(dt); updateAmbient(dt,now/1000); updateNearestInteraction(); updateJobGuide();
   // Keep remote avatars readable as the camera moves.
   for (const avatar of remoteAvatars.values()) {
     for (const tag of avatar.children) if (tag.userData?.billboard) tag.quaternion.copy(camera.quaternion);
