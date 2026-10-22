@@ -24,6 +24,7 @@
         <button class="iconButton" id="voiceButton" title="المحادثة الصوتية"><span id="voiceIcon">🎙️</span><small id="voiceLabel">تفعيل الصوت</small></button>
         <button class="iconButton" id="chatToggle" title="الدردشة">💬<small>الشات</small></button>
         <button class="iconButton" id="cartToggle" title="عربة التسوق">🛒<small>السلة <b id="cartCount">0</b></small></button>
+        <button class="iconButton" id="sidebarToggle" title="إغلاق الشريط الجانبي" aria-controls="storePanel" aria-expanded="true">🏪<small>الدكان</small></button>
         <button class="iconButton" id="jobToggle" title="الوظائف والزي">💼<small>الوظائف</small></button>
         <button class="iconButton" id="viewToggle" title="تغيير منظور الكاميرا">🎥<small id="viewLabel">منظور أول</small></button>
         <button class="iconButton hidden" id="vehicleExit" title="الخروج من سيارة الدورية">🚓<small>خروج من السيارة</small></button>
@@ -34,7 +35,7 @@
     </header>
 
     <aside id="storePanel" class="storePanel glassPanel hud hidden">
-      <div class="panelHeading"><div><small>إدارة الأعمال</small><h3>دكّانك</h3></div><span class="levelPill" id="levelValue">LV. 1</span></div>
+      <div class="panelHeading"><div><small>إدارة الأعمال</small><h3>دكّانك</h3></div><div class="panelHeadActions"><span class="levelPill" id="levelValue">LV. 1</span><button id="storePanelClose" class="closeButton panelCloseButton" type="button" aria-label="إغلاق الشريط الجانبي" title="إغلاق">×</button></div></div>
       <div class="storeHoursLine"><span>🕗 الدوام 08:00–22:00</span><b id="storeOpenBadge">مفتوح</b></div>
       <div class="jobGuide" aria-live="polite"><b id="jobGuideTitle">🏪 صاحب الدكان · هدفك الآن</b><p id="jobGuideText">جهّز الدكان من كتالوج التجهيزات.</p></div>
       <div class="shopStats"><div><small>مبيعات المتجر</small><b id="salesValue">$0</b></div><div><small>المخزون</small><b id="stockValue">0 قطعة</b></div></div>
@@ -68,7 +69,7 @@
 
     <footer id="hudBottom" class="hud hidden">
       <div class="controlHint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>حركة</span><i></i><kbd>Shift</kbd><span>ركض</span><i></i><kbd>E</kbd><span>تفاعل</span><i></i><kbd>F</kbd><span>التقاط</span><i></i><kbd>B</kbd><span>تجهيزات</span><i></i><kbd>J</kbd><span>وظائف</span></div>
-      <div class="worldStatus"><span class="sunIcon">☀</span><span>اليوم <b id="dayValue">01</b></span><span class="statusDivider"></span><span class="clockValue" id="clockValue">08:00</span><span class="statusDivider"></span><span id="storeStatusValue">الدكان مفتوح</span><span class="statusDivider"></span><span id="worldLabel">حيّ الرمال</span></div>
+      <div class="worldStatus"><span class="sunIcon" id="sunIcon">☀</span><span>اليوم <b id="dayValue">01</b></span><span class="statusDivider"></span><span class="clockValue" id="clockValue">08:00</span><span class="statusDivider"></span><span id="storeStatusValue">الدكان مفتوح</span><span class="statusDivider"></span><span id="worldLabel">حيّ الرمال</span></div>
     </footer>
 
     <div id="touchControls" class="hud hidden">
@@ -82,7 +83,7 @@
       <div class="entryBackdrop"></div>
       <div class="entryCard">
         <div class="entryBrand"><img class="entryLogo" src="/logo.svg" alt="شعار الشغيل" /><span class="versionTag">نسخة تجريبية 1.0</span></div>
-        <div class="heroCopy"><div class="eyebrow"><span class="liveDot"></span> عالم مفتوح · حياة · وظائف · تجارة</div><h1>الشغيل،<br/><span>حياتك على كيفك.</span></h1><p>ابدأ من دكّان فاضي بـ100 دولار، اشترِ التجهيزات وابنِ مشروعك بنفسك، أو اشتغل ميكانيكي أو شرطي أو فني IT وإلكترونيات مع أصحابك.</p></div>
+        <div class="heroCopy"><div class="eyebrow"><span class="liveDot"></span> عالم مفتوح · سكان · ليل ونهار · وظائف</div><h1>الشغيل،<br/><span>حياتك على كيفك.</span></h1><p>استكشف مدينة أكبر فيها سكان ومقرات عمل مفتوحة، اشتغل بوظيفة تناسبك، وقد سيارتك واستمتع بتغيّر الوقت بين النهار والليل.</p></div>
         <div class="nameField"><label for="playerName">اسمك داخل اللعبة</label><input id="playerName" maxlength="18" placeholder="اكتب اسمك" value="معتز" /></div>
         <div class="modeCards">
           <button class="modeCard soloMode" id="soloButton"><span class="modeIcon">🚶</span><span class="modeText"><b>العب بمفردك</b><small>عالم خاص محفوظ على جهازك</small></span><span class="cardArrow">←</span></button>
@@ -90,8 +91,8 @@
         </div>
         <div class="joinRow"><div><b>عندك رمز غرفة؟</b><small>ادخل إلى عالم أصحابك</small></div><input id="roomCodeInput" maxlength="5" placeholder="ABCDE" aria-label="رمز الغرفة" /><button id="joinButton">دخول الغرفة</button></div>
         <details class="serverConfig" id="serverConfigPanel"><summary>إعداد اتصال اللعب الجماعي</summary><p><b>مهم:</b> رابط Netlify هو رابط الواجهة، وليس خادم الغرف. انشر المشروع الكامل على Render أولاً، ثم الصق رابط خدمة Render هنا. مثال: <code>https://alshagheel-game-server.onrender.com</code></p><div class="serverConfigRow"><input id="serverUrlInput" type="url" inputmode="url" autocomplete="url" placeholder="https://اسم-الخادم.onrender.com" aria-label="رابط خادم اللعب الجماعي"/><button id="saveServerUrlButton" type="button">حفظ الرابط</button></div><button class="secondaryButton fullWidth serverTestButton" id="testServerButton" type="button">اختبر الاتصال واحفظ الرابط</button><div id="serverConnectionStatus" class="serverConnectionStatus" role="status" aria-live="polite">لم يتم التحقق من خادم الغرف بعد.</div><p class="serverHelp">إذا أعطاك الاختبار أن الخادم يعمل، ارجع وأنشئ غرفة جديدة وشارك الرمز مع أصحابك. لا تستخدم رابط Netlify في هذا الحقل.</p></details>
-        <div class="entryOptionsNote"><b>بداية عادلة</b><span>100$ · أرضية محل فاضية · بدون رفوف أو كاشير أو عربة مجانية</span></div>
-        <button class="freshStartButton" id="freshStartButton">↻ ابدأ حياة جديدة من الصفر <small>يمسح حفظ العالم الفردي ويعيد الرصيد إلى 100$ والدكان فارغاً</small></button>
+        <div class="entryOptionsNote"><b>بداية ميسّرة</b><span>200$ · رف مياه وحاسوب إدارة و6 عبوات جاهزة للتعلّم</span></div>
+        <button class="freshStartButton" id="freshStartButton">↻ ابدأ حياة جديدة من الصفر <small>يمسح حفظ العالم الفردي ويعيد البداية الميسّرة إلى 200$ مع تجهيزاتها</small></button>
         <div class="entryFeatures"><span>🎙️ صوت وشات</span><span>👮 شرطة وبلاغات</span><span>🔧 ميكانيكي</span><span>💻 IT وإلكترونيات</span><span>🎥 منظوران</span></div>
         <div class="entryFoot">في الجماعي، منشئ الغرفة يوزّع الوظائف والزي على اللاعبين. أسماء اللاعبين تظهر فوق شخصياتهم، والوقت والرصيد وحالة الدكان تتزامن للجميع.</div>
       </div>
