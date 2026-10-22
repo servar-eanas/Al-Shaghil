@@ -43,12 +43,12 @@ const moneyFmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-US')
 const itemKeys = ['water', 'chips', 'milk'];
 const JOBS = { shopkeeper:{label:'صاحب الدكان',icon:'🏪',color:'#477b63',uniform:'مريول أخضر'}, mechanic:{label:'ميكانيكي',icon:'🔧',color:'#d18b3f',uniform:'بدلة ورشة برتقالية'}, police:{label:'شرطي',icon:'🚓',color:'#314e8b',uniform:'زي شرطة كحلي'}, it:{label:'فني IT',icon:'💻',color:'#4b8192',uniform:'قميص تقني أزرق'}, electronics:{label:'فني إلكترونيات',icon:'📱',color:'#7559a7',uniform:'زي صيانة بنفسجي'}, criminal:{label:'مشتبه به',icon:'🕶️',color:'#323b3f',uniform:'ملابس داكنة'}, delivery:{label:'مندوب توصيل',icon:'🚚',color:'#9d9852',uniform:'سترة توصيل زيتونية'}, unassigned:{label:'بانتظار التعيين',icon:'👤',color:'#66736d',uniform:'ملابس عادية'} };
 const defaultGame = () => ({
-  schemaVersion: 9, balance: 100, day: 1, gameMinutes: 8*60, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
-  capacity: 12, storageLevel: 0,
-  fixtures: { shelves:{water:false,chips:false,milk:false}, register:false, computer:false, cart:false, fridges:false, itBench:false, electronics:false },
+  schemaVersion: 9, balance: 200, day: 1, gameMinutes: 8*60, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
+  capacity: 12, storageLevel: 0, easyStartGranted: true,
+  fixtures: { shelves:{water:true,chips:false,milk:false}, register:false, computer:true, cart:false, fridges:false, itBench:false, electronics:false },
   upgrades: { topShelf: false, warehouse: false, checkout: false, expansion: false },
   inventory: {
-    water: { name: 'مياه', price: 4, cost: 2, pack: 6, stock: 0, shelf: 0, shelfSlots: [], color: '#62c3f5' },
+    water: { name: 'مياه', price: 4, cost: 2, pack: 6, stock: 6, shelf: 0, shelfSlots: [], color: '#62c3f5' },
     chips: { name: 'شيبس', price: 6, cost: 3, pack: 6, stock: 0, shelf: 0, shelfSlots: [], color: '#f5ad42' },
     milk: { name: 'حليب', price: 8, cost: 4, pack: 6, stock: 0, shelf: 0, shelfSlots: [], color: '#f0eee8' }
   }
@@ -771,6 +771,15 @@ function normalizeGameState(state) {
     item.shelf = item.shelfSlots.length;
     if (!Number.isFinite(Number(item.stock))) item.stock = 0;
   }
+  // One-time catch-up kit makes older saved games easier without resetting progress.
+  if (state.easyStartGranted !== true) {
+    state.balance = Math.max(0, Number(state.balance) || 0) + 100;
+    state.fixtures.computer = true;
+    state.fixtures.shelves.water = true;
+    const starterWater = state.inventory.water;
+    if (starterWater && (Number(starterWater.stock) || 0) < 1 && (Number(starterWater.shelf) || 0) < 1) starterWater.stock = 6;
+    state.easyStartGranted = true;
+  }
   return state;
 }
 function renderHeldVisual() {
@@ -1181,7 +1190,7 @@ function updateJobGuide(state = gameState, force = false) {
     else if (!shelfReady) text.textContent = '٢) اختر صنفاً من القائمة ثم اشترِ رفّه بـ$25. بعد ذلك اطلب بضاعة من زر «شراء بضاعة للمخزن».';
     else if (!anyGoods) text.textContent = '٣) اختر الصنف ثم اضغط «شراء بضاعة للمخزن». خذ القطع من المخزن وضعها على الرف الذي يحمل الصنف نفسه.';
     else if (!state.fixtures?.register) text.textContent = '٤) جهّز الرف والبضاعة، ثم اشترِ الكاشير بـ$20 لتبيع المنتجات وتنجز مهام صاحب الدكان.';
-    else text.textContent = 'التقط قطعة من الرف أو عبّئه من المخزن. عند الكاشير اضغط E للبيع أو للمحاسبة. لإنجاز المهمة، اتبع العلامة «مهمة صاحب الدكان» الخضراء بجانب الكاشير واضغط E.';
+    else text.textContent = 'بداية سهلة: عندك مياه جاهزة بالمخزن ورف مياه وحاسوب الإدارة. اقترب من صندوق مخزون المياه واضغط E، ثم اقترب من رف المياه واضغط E لوضعها (حتى لو لم تكن تنظر إليه مباشرة). كرّرها، ثم اشترِ الكاشير بـ$20 لبدء البيع.';
     return;
   }
   const spots = {
@@ -1986,7 +1995,7 @@ function interactionLabel(target) {
 }
 function updateNearestInteraction() {
   if (!active || paused) { nearestInteraction = null; $('interactionPrompt').classList.add('hidden'); return; }
-  let min = 2.65, nearest = null;
+  let min = 3.25, nearest = null;
   const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y = 0;
   if (forward.lengthSq() > 0.0001) forward.normalize();
   for (const t of targets) {
@@ -2003,7 +2012,7 @@ function updateNearestInteraction() {
     const d = Math.hypot(dx, dz);
     if (d >= min) continue;
     const facing = d > 0.001 ? (dx * forward.x + dz * forward.z) / d : 1;
-    if (facing < 0.12) continue; // Only show prompts for objects in front of the player.
+    if (facing < 0.12 && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Easier placement: matching shelf can be selected while carrying its product.
     nearest = t; min = d;
   }
   nearestInteraction = nearest;
