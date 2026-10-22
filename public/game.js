@@ -2156,7 +2156,7 @@ function updateAmbient(dt, time) {
     const swing = walking ? Math.sin(data.walkPhase) * .24 : 0;
     for (let n = 0; n < (data.npcLegs || []).length; n++) data.npcLegs[n].rotation.z = n === 0 ? swing : -swing;
     for (let n = 0; n < (data.npcArms || []).length; n++) data.npcArms[n].rotation.z = n === 0 ? -swing * .65 : swing * .65;
-    if (g.children[0]) g.children[0].position.y = .82 + Math.abs(Math.sin(data.walkPhase || time)) * (walking ? .025 : .008);
+    if (g.children[0]) g.children[0].position.y = 1.02 + Math.abs(Math.sin(data.walkPhase || time)) * (walking ? .025 : .008);
   });
 }
 let lastFrame=performance.now();
