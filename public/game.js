@@ -1018,6 +1018,15 @@ function enterWorld(mode) {
     if (document.pointerLockElement === canvas) document.exitPointerLock?.();
   }
 }
+function resumeWorldIfNoModal() {
+  const overlayIds=['tutorialModal','paymentModal','upgradesModal','pauseMenu','jobModal','shortcutsModal'];
+  if(active&&overlayIds.every(id=>$(id)?.classList.contains('hidden')))paused=false;
+}
+function openShortcutsModal(){if(!active)return;paused=true;$('shortcutsModal').classList.remove('hidden');if(document.pointerLockElement===canvas)document.exitPointerLock?.();}
+function closeShortcutsModal(){$('shortcutsModal').classList.add('hidden');resumeWorldIfNoModal();}
+$('shortcutsToggle').addEventListener('click',openShortcutsModal);
+$('shortcutsClose').addEventListener('click',closeShortcutsModal);
+$('shortcutsDone').addEventListener('click',closeShortcutsModal);
 function openTutorial() {
   if (!active) return;
   paused = true;
@@ -1027,7 +1036,7 @@ function openTutorial() {
 function closeTutorial() {
   $('tutorialModal').classList.add('hidden');
   try { localStorage.setItem('alshagheel-tutorial-seen-v1', 'yes'); } catch {}
-  if (active && $('paymentModal').classList.contains('hidden') && $('upgradesModal').classList.contains('hidden') && $('pauseMenu').classList.contains('hidden')) paused = false;
+  resumeWorldIfNoModal();
 }
 $('tutorialStartButton').addEventListener('click', closeTutorial);
 $('tutorialClose').addEventListener('click', closeTutorial);
@@ -1245,7 +1254,7 @@ function renderJobAssignments() {
 }
 function escapeUi(value) { return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function openJobModal() { if (!active) return; paused = true; renderJobAssignments(); $('jobModal').classList.remove('hidden'); if (document.pointerLockElement === canvas) document.exitPointerLock?.(); }
-function closeJobModal() { $('jobModal').classList.add('hidden'); if (active && $('tutorialModal').classList.contains('hidden') && $('upgradesModal').classList.contains('hidden') && $('paymentModal').classList.contains('hidden') && $('pauseMenu').classList.contains('hidden')) paused = false; }
+function closeJobModal() { $('jobModal').classList.add('hidden'); resumeWorldIfNoModal(); }
 $('jobToggle').addEventListener('click', openJobModal);
 $('tutorialJobButton').addEventListener('click', () => { closeTutorial(); openJobModal(); });
 $('jobsPauseButton').addEventListener('click', () => { closePauseMenu(); openJobModal(); });
@@ -1586,7 +1595,7 @@ function openPaymentModal(type, product = selectedProduct) {
 }
 function closePaymentModal() {
   $('paymentModal').classList.add('hidden'); pendingPayment = null;
-  if (active && $('upgradesModal').classList.contains('hidden') && $('pauseMenu').classList.contains('hidden')) paused = false;
+  resumeWorldIfNoModal();
 }
 function confirmPayment(method) {
   if (!pendingPayment) return;
@@ -1599,7 +1608,7 @@ $('paymentCancel').addEventListener('click', closePaymentModal);
 $('payCash').addEventListener('click', () => confirmPayment('cash'));
 $('payVisa').addEventListener('click', () => confirmPayment('visa'));
 function openUpgradesModal() { if (!active) return; paused = true; $('upgradesModal').classList.remove('hidden'); }
-function closeUpgradesModal() { $('upgradesModal').classList.add('hidden'); if (active && $('paymentModal').classList.contains('hidden') && $('pauseMenu').classList.contains('hidden')) paused = false; }
+function closeUpgradesModal() { $('upgradesModal').classList.add('hidden'); resumeWorldIfNoModal(); }
 $('upgradesCancel').addEventListener('click', closeUpgradesModal);
 $('upgradeShelf').addEventListener('click', () => { closeUpgradesModal(); performAction('upgrade', selectedProduct, { upgradeType: 'topShelf' }); });
 $('upgradeWarehouse').addEventListener('click', () => { closeUpgradesModal(); performAction('upgrade', selectedProduct, { upgradeType: 'warehouse' }); });
@@ -2081,13 +2090,35 @@ function pickFocusedProduct() {
 $('touchAction').addEventListener('click', interact);
 $('touchPickup').addEventListener('click', pickFocusedProduct);
 window.addEventListener('keydown', e => {
-  keys[e.code] = true;
-  if (e.code === 'KeyV' && active && !e.repeat) setCameraView(cameraView === 'first' ? 'third' : 'first');
-  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
-  if (e.code === 'KeyE' && !e.repeat) interact();
-  if (e.code === 'KeyF' && !e.repeat) pickFocusedProduct();
-  if (e.code === 'KeyG' && !e.repeat && heldItem) performAction('returnHeld', heldItem);
-  if (e.code === 'Escape' && active) { if (!$('tutorialModal').classList.contains('hidden')) closeTutorial(); else if (paused) closePauseMenu(); else openPauseMenu(); }
+  const target=e.target;
+  const typing=target instanceof HTMLElement&&(target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(target.tagName));
+  if(typing)return;
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)&&active)e.preventDefault();
+  if(e.code==='Escape'&&active&&!e.repeat){
+    if(!$('shortcutsModal').classList.contains('hidden'))closeShortcutsModal();
+    else if(!$('tutorialModal').classList.contains('hidden'))closeTutorial();
+    else if(!$('jobModal').classList.contains('hidden'))closeJobModal();
+    else if(!$('upgradesModal').classList.contains('hidden'))closeUpgradesModal();
+    else if(!$('paymentModal').classList.contains('hidden'))closePaymentModal();
+    else if(!$('pauseMenu').classList.contains('hidden'))closePauseMenu();
+    else openPauseMenu();
+    return;
+  }
+  keys[e.code]=true;
+  if(!active||paused||e.repeat)return;
+  if(e.code==='KeyV')setCameraView(cameraView==='first'?'third':'first');
+  else if(e.code==='KeyE')interact();
+  else if(e.code==='KeyF')pickFocusedProduct();
+  else if(e.code==='KeyG'&&heldItem)performAction('returnHeld',heldItem);
+  else if(e.code==='KeyB')openUpgradesModal();
+  else if(e.code==='KeyJ')openJobModal();
+  else if(e.code==='KeyH')openTutorial();
+  else if(e.code==='KeyK'){const panel=$('cartPanel');panel.classList.toggle('hidden');$('chatPanel').classList.add('hidden');if(!panel.classList.contains('hidden'))updateCartUI();}
+  else if(e.code==='KeyC'&&currentMode==='multi'){const panel=$('chatPanel');panel.classList.toggle('hidden');$('cartPanel').classList.add('hidden');panel.classList.toggle('mobileHidden',false);if(!panel.classList.contains('hidden'))$('chatInput').focus();}
+  else if(['Digit1','Digit2','Digit3'].includes(e.code)){
+    const key=itemKeys[Number(e.code.slice(-1))-1];
+    if(key){selectedProduct=key;renderState(gameState);toast('اخترت '+(gameState.inventory[key]?.name||key),1100);}
+  }
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; touchMove.x = 0; touchMove.y = 0; });
@@ -2337,7 +2368,7 @@ function updateCustomerBehavior(g,dt,time) {
       const available=availableCustomerProducts().sort(()=>Math.random()-.5);
       for(const key of available) {
         const shelfIndex=itemKeys.indexOf(key),sx=shelfXs[shelfIndex];
-        const aisleX=sx+(shelfIndex===2?-.92:.92),aisleZ=3.15;
+        const aisleX=sx+(shelfIndex===2?-1.3:1.3),aisleZ=3.15;
         if(npcRouteTo(g,aisleX,aisleZ)){data.customerProductKey=key;data.customerState='toShelf';return;}
       }
       data.customerTimer=1.5+Math.random()*2;
