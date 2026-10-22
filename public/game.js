@@ -420,49 +420,83 @@ box(electronicsBenchGroup, 'electronics workbench', 5.3, .55, -4.5, 2.05, .95, .
 box(electronicsBenchGroup, 'electronics mat', 5.3, 1.04, -4.35, 1.15, .035, .52, mat('repair mat', '#2f4f4b', .9));
 box(electronicsBenchGroup, 'tablet repair screen', 5.3, 1.14, -4.48, .72, .06, .48, mat('tablet screen', '#6aa1bd', .3, {emissive:'#245d78', emissiveIntensity:.25}));
 box(electronicsBenchGroup, 'soldering station', 6.0, 1.18, -4.05, .2, .24, .2, mat('soldering station', '#303b3c', .62));
-// Visible vocational stations in the neighborhood. These are work areas, not just floating prompts.
-function buildJobStation(title, x, z, accent, kind) {
-  const g = new THREE.Group(); world.add(g);
-  box(g, `${kind} pavement`, x, .04, z, 4.7, .12, 3.6, mat(`${kind} pavement`, '#8e9287', .95));
-  box(g, `${kind} back wall`, x, 1.55, z-1.55, 4.4, 2.9, .22, mat(`${kind} wall`, '#b9b9a8', .9));
-  box(g, `${kind} roof`, x, 3.08, z, 4.9, .18, 3.8, mat(`${kind} roof`, accent, .75));
-  for (const xx of [x-2.2,x+2.2]) box(g, `${kind} post`, xx, 1.52, z+.95, .16, 2.9, .16, mat(`${kind} post material`, accent, .65));
-  box(g, `${kind} counter`, x, .72, z-.72, 2.25, 1.15, .68, mat(`${kind} counter material`, '#785d46', .86));
-  const sign=labelSprite(title,{bg:accent,color:'#fff8e9',fontSize:46,width:600,height:132});sign.position.set(x,2.62,z-1.41);sign.scale.set(2.85,.62,1);g.add(sign);
-  const marker=labelSprite('موقع الوظيفة · اقترب واضغط E',{bg:'#172b25ee',color:'#fff0bc',fontSize:30,width:560,height:88});marker.position.set(x,3.78,z+.18);marker.scale.set(2.8,.44,1);g.add(marker);
-  if (kind === 'mechanic') {
-    box(g,'car lift base',x, .18, z+.25, 2.1,.22,2.25,mat('lift base','#363f3e',.65));
-    for (const xx of [x-.85,x+.85]) box(g,'car lift post',xx,1.05,z+.25,.13,1.85,.13,mat('lift post',accent,.56,{metalness:.25}));
-    box(g,'tool cabinet',x+1.35,.66,z-.3,.45,1.25,.55,mat('tool cabinet','#36423e',.75));
-  } else if (kind === 'it') {
-    box(g,'IT monitor back',x,.98,z-.76,.62,.43,.08,mat('IT station screen','#283c40',.45));
-    box(g,'IT monitor',x,.99,z-.70,.53,.32,.025,mat('IT station display','#4e95a7',.34,{emissive:'#256b7d',emissiveIntensity:.23}));
-  } else if (kind === 'electronics') {
-    box(g,'electronics screen',x,.98,z-.72,.62,.13,.42,mat('electronics tester','#2c3b3d',.42));
-    box(g,'electronics screen display',x,.99,z-.69,.52,.05,.34,mat('electronics display','#68a6a2',.32,{emissive:'#296d69',emissiveIntensity:.22}));
-  } else if (kind === 'police') {
-    box(g,'police booth stripe',x,1.3,z-.40,3.6,.11,.06,mat('police stripe', '#d6c17d', .6));
-    box(g,'police badge prop',x+.9,1.72,z-1.39,.35,.38,.035,mat('station badge','#d7c079',.46,{metalness:.35}));
-  } else if (kind === 'delivery') {
-    for(let i=0;i<3;i++){const crate=box(g,'delivery crate',x-1+i*.9,.42,z+.35,.7,.72,.7,mat(`delivery crate ${i}`,'#a77e50',.96));}
+// Large, open-front workplaces with distinct interiors for every profession.
+function buildJobStation(title,x,z,accent,kind) {
+  const g=new THREE.Group();g.position.set(x,0,z);world.add(g);
+  box(g,`${kind} forecourt`,0,.04,0,12.2,.12,9.6,mat(`${kind} forecourt`,'#a5a394',.95),{castShadow:false});
+  box(g,`${kind} back wall`,0,1.95,-4.55,11.9,3.8,.24,mat(`${kind} wall`,'#b9b9a8',.9));
+  box(g,`${kind} left return wall`,-5.86,1.35,-1.7,.24,2.7,5.5,mat(`${kind} wall`,'#b9b9a8',.9));
+  box(g,`${kind} right return wall`,5.86,1.35,-1.7,.24,2.7,5.5,mat(`${kind} wall`,'#b9b9a8',.9));
+  for(const xx of [-5.85,5.85])for(const zz of [-4.1,3.95])box(g,`${kind} structural column`,xx,1.75,zz,.28,3.5,.28,mat(`${kind} column`,accent,.55));
+  box(g,`${kind} rear canopy`,0,3.72,-3.85,12.5,.18,1.55,mat(`${kind} roof`,accent,.72));
+  box(g,`${kind} counter`,0,.72,-2.35,3.25,1.15,.75,mat(`${kind} counter material`,'#785d46',.86));
+  const sign=labelSprite(title,{bg:accent,color:'#fff8e9',fontSize:46,width:700,height:140});sign.position.set(0,3.35,-4.32);sign.scale.set(4.55,.91,1);g.add(sign);
+  const marker=labelSprite('مقر الوظيفة · ادخل وابدأ',{bg:'#172b25ee',color:'#fff0bc',fontSize:30,width:560,height:88});marker.position.set(0,2.72,3.35);marker.scale.set(2.8,.44,1);g.add(marker);
+  if(kind==='mechanic') {
+    for(const xx of [-2.65,2.65]) {
+      box(g,'car lift base',xx,.18,.15,2.5,.22,3.15,mat('lift base','#363f3e',.65));
+      for(const dx of [-.92,.92])box(g,'car lift post',xx+dx,1.05,.15,.13,1.85,.13,mat('lift post',accent,.56,{metalness:.25}));
+      box(g,'repair vehicle body',xx,.72,.15,1.8,.42,2.65,mat(`repair car ${xx}`,'#778781',.46,{metalness:.18}));
+      box(g,'repair vehicle roof',xx,.99,.15,1.1,.25,1.25,mat(`repair roof ${xx}`,'#3a5552',.4));
+    }
+    box(g,'tool cabinet',4.65,.75,-1.55,.65,1.45,.75,mat('tool cabinet','#36423e',.75));
+    for(let i=0;i<4;i++)box(g,'tool drawers',4.65,.28+i*.29,-1.14,.67,.07,.05,mat('tool drawer','#b6a17b',.7,{metalness:.2}));
+    box(g,'tire stack',-4.6,.45,-1.8,.62,.8,.62,mat('workshop tires','#292f2e',.95));
+  } else if(kind==='it') {
+    for(const xx of [-3.7,0,3.7]) {
+      box(g,'IT workstation desk',xx,.68,-.8,2.1,.12,1.0,mat('IT station desk','#4c5e59',.78));
+      box(g,'IT screen back',xx,1.18,-1.0,.72,.56,.09,mat('IT station screen','#283c40',.45));
+      box(g,'IT screen display',xx,1.19,-.94,.62,.42,.025,mat('IT station display','#4e95a7',.34,{emissive:'#256b7d',emissiveIntensity:.23}));
+      box(g,'IT keyboard',xx,.78,-.35,.65,.035,.23,mat('IT keyboard','#202d2b',.65));
+    }
+    for(const xx of [-4.45,-3.55]) {
+      box(g,'server rack',xx,1.45,-3.25,.7,2.65,.9,mat('IT server rack','#273538',.6,{metalness:.22}));
+      for(let k=0;k<4;k++)box(g,'server status panel',xx,.55+k*.55,-2.78,.48,.12,.025,mat('server status','#5ab2a0',.3,{emissive:'#2d8776',emissiveIntensity:.38}));
+    }
+  } else if(kind==='electronics') {
+    for(const xx of [-3.2,0,3.2]) {
+      box(g,'electronics workbench',xx,.62,-.75,2.5,.12,1.15,mat('electronics desk','#574c69',.78));
+      box(g,'electronics mat',xx,.71,-.5,1.4,.025,.6,mat('electronics mat','#2f4f4b',.9));
+      box(g,'device under repair',xx,.84,-.66,.72,.07,.45,mat('tablet screen','#6aa1bd',.3,{emissive:'#245d78',emissiveIntensity:.18}));
+      box(g,'soldering station',xx+.82,.91,-.95,.22,.25,.22,mat('soldering station','#303b3c',.62));
+    }
+    for(let i=0;i<4;i++)box(g,'device display',-4.8+i*.68,1.05,-3.6,.42,.42,.17,mat(`device display ${i}`,['#7e9da5','#8c80a7','#a5a17d','#5e9290'][i],.38));
+  } else if(kind==='police') {
+    box(g,'police service desk',0,.78,-2.45,4.25,1.25,.85,mat('police desk','#314b66',.72));
+    box(g,'police desk front badge',0,.82,-1.99,.85,.42,.035,mat('police desk badge','#e2d7b6',.45,{metalness:.24}));
+    box(g,'police computer',-.95,1.48,-2.58,.65,.48,.08,mat('police computer','#26383e',.4));
+    box(g,'police evidence board',0,2.25,-4.39,3.2,1.25,.045,mat('police noticeboard','#adbdac',.9));
+    for(let i=0;i<3;i++)box(g,'police notice',-1+i*.95,2.25,-4.34,.62,.75,.02,mat(`police paper ${i}`,'#eee5ce',.95));
+    for(const cx of [-3.75,3.75]) {
+      box(g,'police holding cell back',cx,1.1,-3.45,2.35,2.1,.1,mat('cell wall','#8a9999',.72));
+      for(const bx of [-1,-.5,0,.5,1])cylinder(g,'holding cell bars',cx+bx,1.05,-2.78,.035,.035,2.05,mat('steel bars','#9da8a9',.35,{metalness:.65}),8);
+      box(g,'holding cell top rail',cx,2.08,-2.78,2.2,.08,.08,mat('steel bars','#9da8a9',.35,{metalness:.65}));
+    }
+    box(g,'police blue stripe',0,2.9,-4.39,8.7,.16,.08,mat('police stripe','#d6c17d',.55));
+    box(g,'police emblem',4.8,2.35,-4.37,.5,.55,.08,mat('station badge','#d7c079',.46,{metalness:.35}));
+    box(g,'police bench',-4.2,.42,1.25,2.2,.15,.48,mat('police bench','#314b66',.7));
+  } else if(kind==='delivery') {
+    for(let i=0;i<4;i++)for(let j=0;j<2;j++)box(g,'delivery pallet crate',-4.15+i*2.55,.46+j*.88,-1.35,.92,.78,.88,mat(`delivery crate ${i}-${j}`,'#a77e50',.96));
+    box(g,'delivery sorting table',0,.7,1.15,3.4,.12,1.2,mat('delivery table','#6b5840',.9));
+    for(let i=0;i<3;i++)box(g,'delivery parcel',-.9+i*.9,.95,1.15,.62,.42,.62,mat(`delivery parcel ${i}`,'#c3a078',.96));
   }
   return g;
 }
-const mechanicStation = buildJobStation('ورشة الميكانيك', -34, 9, '#bf7e3d', 'mechanic');
-const itStation = buildJobStation('مركز تقنية المعلومات', 22, 10, '#3c7f91', 'it');
-const electronicsStation = buildJobStation('صيانة الإلكترونيات', 34, 9.3, '#7559a7', 'electronics');
-const policeStation = buildJobStation('مركز الشرطة', -44, 15, '#304d7d', 'police');
-const deliveryStation = buildJobStation('مستودع التوصيل', -42, 9, '#8d8e47', 'delivery');
+const mechanicStation=buildJobStation('ورشة الميكانيك',-57,10,'#bf7e3d','mechanic');
+const itStation=buildJobStation('مركز تقنية المعلومات',55,10,'#3c7f91','it');
+const electronicsStation=buildJobStation('مركز الإلكترونيات',73,10,'#7559a7','electronics');
+const policeStation=buildJobStation('مركز الشرطة',-63,34,'#304d7d','police');
+const deliveryStation=buildJobStation('مستودع التوصيل',-42,34,'#8d8e47','delivery');
 const stolenGoodsCrate = new THREE.Group(); world.add(stolenGoodsCrate);
 box(stolenGoodsCrate,'electronics shipment crate',13,.46,22.1,1.25,.9,.95,mat('electronics shipment crate','#ad824d',.96));
 box(stolenGoodsCrate,'shipment label',13,1.0,21.6,.8,.24,.035,mat('shipment label','#e7dfc9',.86));
 const shipmentTag=labelSprite('شحنة أجهزة',{bg:'#4e3f2b',color:'#fff3d9',fontSize:32,width:310,height:78}); shipmentTag.position.set(13,1.6,22.05); shipmentTag.scale.set(1.12,.28,1); shipmentTag.userData.billboard=true; stolenGoodsCrate.add(shipmentTag);
 // Static station collision footprints keep the avatar out of counters and walls.
 const stationBlockers = [
-  addBlocker(-34,9,2.35,1.8,'mechanic-station'), addBlocker(22,10,2.35,1.8,'it-station'),
-  addBlocker(34,9.3,2.35,1.8,'electronics-station'), addBlocker(-44,15,2.35,1.8,'police-station'),
-  addBlocker(-42,9,2.35,1.8,'delivery-station')
-];
+  [-57,10,'mechanic-station'],[55,10,'it-station'],[73,10,'electronics-station'],[-63,34,'police-station'],[-42,34,'delivery-station']
+].flatMap(([x,z,id])=>[
+  addBlocker(x,z-4.35,5.9,.24,`${id}-back`),addBlocker(x-5.85,z-1.65,.24,2.55,`${id}-left`),addBlocker(x+5.85,z-1.65,.24,2.55,`${id}-right`)
+]);
 // Open paths in front of each station are kept navigable by the small-world layout.
 // Outside shop sign, short bollards and flower boxes.
 for (const x of [-2.0, 2.0]) {
@@ -1399,7 +1433,7 @@ function performJobTask(job) {
   }
   const now = Date.now();
   if (now - localJobCooldown < 5000) return toast('خذ وقتك، المهمة التالية بعد قليل.');
-  const locations = { shopkeeper:[-2.15,-5.15], mechanic:[-34,11.25], it:[22,12.25], electronics:[34,11.55], delivery:[-42,11.25], criminal:[13,23.3] };
+  const locations = { shopkeeper:[-2.15,-5.15], mechanic:[-57,11.2], it:[55,11.2], electronics:[73,11.2], delivery:[-42,35.2], criminal:[13,23.3] };
   if (job === 'police') {
     if (!robberNpc?.visible || distanceXZ(playerPosition.x, playerPosition.z, robberNpc.position.x, robberNpc.position.z) > 3.7) return toast('اقترب من المشتبه به في الشارع ثم اضغط E.');
     robberNpc.visible = false; setTimeout(() => { robberNpc.visible = true; }, 14000);
@@ -1928,16 +1962,19 @@ fixtureBlockers.electronics = addBlocker(5.3, -4.5, 1.05, .48, 'electronics-work
 // Outside planters and parked vehicles.
 addBlocker(-4.7, 7.65, 1.0, 0.48, 'planter-west'); addBlocker(4.7, 7.65, 1.0, 0.48, 'planter-east');
 for (const bx of [-2, 2]) addBlocker(bx, 7.35, 0.17, 0.17, `door-bollard-${bx}`);
-const policeCarBlocker = addBlocker(-8, 18.6, 1.9, .9, 'police-car');
-addBlocker(11, 21.3, 1.95, 0.98, 'car-east');
+const policeCarBlocker = addBlocker(-54, 42, 1.9, .9, 'police-car');
+addBlocker(42, 21.3, 1.95, 0.98, 'car-east');
+addBlocker(82,55,1.95,.98,'car-north');
 cartBlocker = addBlocker(6.35, 4.05, 0.62, 0.70, 'shopping-cart'); cartBlocker.active = false;
 // Buildings in the street are solid; collision bounds match their visible footprints.
 addBlocker(-15, 3, 5.15, 5.65, 'home-west'); addBlocker(15, 3.5, 5.15, 5.65, 'home-east');
 addBlocker(-27, 2, 4.65, 5.15, 'market-west'); addBlocker(27, 2, 4.65, 5.15, 'market-east');
 addBlocker(-15, 30, 4.65, 5.15, 'home-northwest'); addBlocker(15, 31, 5.15, 5.65, 'home-northeast');
-for (const lx of [-31,-22,-9,9,22,31]) addBlocker(lx, 14.2, 0.14, 0.14, `street-lamp-${lx}`);
+addBlocker(-90,-7,5.25,5.25,'market-far-west');addBlocker(90,-7,5.25,5.25,'market-far-east');
+addBlocker(-90,73,5.25,5.75,'home-far-northwest');addBlocker(90,73,5.25,5.75,'home-far-northeast');
+for (const lx of [-90,-80,-50,-40,-31,-22,-9,9,22,31,40,50,80,90]) addBlocker(lx, 14.2, 0.14, 0.14, `street-lamp-${lx}`);
 function isBlockedPosition(x, z) {
-  if (x < -58 || x > 58 || z < -52 || z > 57) return true;
+  if (x < -98 || x > 98 || z < -88 || z > 92) return true;
   return worldBlockers.some(b => b.active !== false && x > b.minX - PLAYER_RADIUS && x < b.maxX + PLAYER_RADIUS && z > b.minZ - PLAYER_RADIUS && z < b.maxZ + PLAYER_RADIUS);
 }
 function isVehicleBlockedPosition(x,z) {
@@ -1971,13 +2008,13 @@ const targets = [
   { id:'shelf-chips', label:'رف الشيبس', x:1.87, z:-0.55, type:'shelf', product:'chips' },
   { id:'shelf-milk', label:'رف الألبان', x:5.02, z:-0.55, type:'shelf', product:'milk' },
   { id:'shopping-cart', label:'عربة التسوق', x:6.35, z:4.05, type:'cart' },
-  { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-8, z:20.15, type:'vehicle', job:'police' },
+  { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-54, z:43.55, type:'vehicle', job:'police' },
   { id:'job-shopkeeper', label:'مهمة صاحب الدكان — بجانب الكاشير', x:-2.15, z:-5.15, type:'jobTask', job:'shopkeeper', icon:'🧾' },
-  { id:'job-mechanic', label:'ورشة الميكانيك — صيانة مركبة', x:-34, z:11.25, type:'jobTask', job:'mechanic', icon:'🔧' },
-  { id:'job-it', label:'مكتب تقنية المعلومات — إصلاح حاسوب', x:22, z:12.25, type:'jobTask', job:'it', icon:'💻' },
-  { id:'job-electronics', label:'محل الإلكترونيات — صيانة جهاز', x:34, z:11.55, type:'jobTask', job:'electronics', icon:'📱' },
+  { id:'job-mechanic', label:'ورشة الميكانيك — صيانة مركبة', x:-57, z:11.2, type:'jobTask', job:'mechanic', icon:'🔧' },
+  { id:'job-it', label:'مركز تقنية المعلومات — إصلاح حاسوب', x:55, z:11.2, type:'jobTask', job:'it', icon:'💻' },
+  { id:'job-electronics', label:'مركز الإلكترونيات — صيانة جهاز', x:73, z:11.2, type:'jobTask', job:'electronics', icon:'📱' },
   { id:'job-police', label:'مشتبه به في الشارع — قبض عليه', x:6, z:22, type:'jobTask', job:'police', icon:'🚓' },
-  { id:'job-delivery', label:'نقطة التوصيل — تسليم طلب', x:-42, z:11.25, type:'jobTask', job:'delivery', icon:'🚚' },
+  { id:'job-delivery', label:'مستودع التوصيل — استلام وتسليم طلب', x:-42, z:35.2, type:'jobTask', job:'delivery', icon:'🚚' },
   { id:'job-criminal', label:'شحنة إلكترونيات — سرقة (تجعلك مطلوباً)', x:13, z:23.3, type:'jobTask', job:'criminal', icon:'🕶️' }
 ];
 function claimShoppingCart() {
