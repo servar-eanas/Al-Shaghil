@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#101a20" />
+  <meta name="description" content="الشغيل — عالم حياة مفتوح، وظائف، متاجر، وقت يومي ولعب جماعي أونلاين" />
+  <title>الشغيل | حياتك، على كيفك</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main id="gameShell">
+    <canvas id="gameCanvas" aria-label="عالم اللعبة ثلاثي الأبعاد"></canvas>
+    <div class="vignette"></div>
+    <div id="crosshair" class="crosshair hud hidden" aria-hidden="true">•</div>
+
+    <header id="hudTop" class="hud hidden">
+      <div class="brandPlate">
+        <div class="brandMark">ش</div>
+        <div><b>الشغيل</b><small id="modeLabel">حياتك، على كيفك</small><small class="jobBadge" id="jobValue">بدون وظيفة</small></div>
+      </div>
+      <div class="moneyPlate"><span class="moneyIcon">$</span><div><small>خزنة المتجر المشتركة</small><strong id="balanceValue">$100</strong></div><span class="syncDot" id="syncDot"></span></div>
+      <div class="topActions">
+        <button class="iconButton" id="voiceButton" title="المحادثة الصوتية"><span id="voiceIcon">🎙️</span><small id="voiceLabel">تفعيل الصوت</small></button>
+        <button class="iconButton" id="chatToggle" title="الدردشة">💬<small>الشات</small></button>
+        <button class="iconButton" id="cartToggle" title="عربة التسوق">🛒<small>السلة <b id="cartCount">0</b></small></button>
+        <button class="iconButton" id="jobToggle" title="الوظائف والزي">💼<small>الوظائف</small></button>
+        <button class="iconButton" id="viewToggle" title="تغيير منظور الكاميرا">🎥<small id="viewLabel">منظور أول</small></button>
+        <button class="iconButton hidden" id="vehicleExit" title="الخروج من سيارة الدورية">🚓<small>خروج من السيارة</small></button>
+        <button class="iconButton helpButton" id="helpToggle" title="شرح طريقة اللعب">❔<small>كيف ألعب؟</small></button>
+        <button class="iconButton" id="menuButton" title="القائمة">☰<small>القائمة</small></button>
+      </div>
+    </header>
+
+    <aside id="storePanel" class="storePanel glassPanel hud hidden">
+      <div class="panelHeading"><div><small>إدارة الأعمال</small><h3>دكّانك</h3></div><span class="levelPill" id="levelValue">LV. 1</span></div>
+      <div class="storeHoursLine"><span>🕗 الدوام 08:00–22:00</span><b id="storeOpenBadge">مفتوح</b></div>
+      <div class="shopStats"><div><small>مبيعات المتجر</small><b id="salesValue">$0</b></div><div><small>المخزون</small><b id="stockValue">0 قطعة</b></div></div>
+      <div class="sectionLabel">اختر منتجاً بالضغط عليه</div>
+      <div id="inventoryList" class="inventoryList"></div>
+      <button class="primaryButton fullWidth" id="orderButton"><span>📦</span> شراء بضاعة للمخزن <em id="orderCost">$12</em></button>
+      <button class="secondaryButton fullWidth" id="buildButton"><span>🧰</span> شراء تجهيزات وبناء الدكان <em>كتالوج</em></button>
+      <button class="secondaryButton fullWidth" id="upgradeButton"><span>↗</span> تطوير المتجر <em>خيارات</em></button>
+      <button class="primaryButton fullWidth storeToggleAction" id="storeToggle"><span>🔒</span> إغلاق الدكان <em>مفتوح الآن</em></button>
+      <button class="secondaryButton fullWidth" id="storeSchedule"><span>🕒</span> تفعيل الدوام التلقائي <em id="scheduleStatus">حسب الساعة</em></button>
+      <div class="microcopy">المحل يبدأ فارغاً. اشترِ الرفوف والكاشير والحاسوب والعربة، ثم رتّب تجارتك بنفسك.</div>
+    </aside>
+
+    <aside id="cartPanel" class="glassPanel cartPanel hud hidden">
+      <div class="panelHeading"><div><small>تسوق فعلي</small><h3>عربة التسوق</h3></div><button id="closeCart" class="closeButton">×</button></div>
+      <div id="cartItems" class="cartItems"><div class="emptyChat">العربة فارغة. خذ منتجاً من الرف وضعه فيها.</div></div>
+      <div class="cartSummary"><span>الإجمالي المتوقع</span><b id="cartTotal">$0</b></div>
+      <div class="chatTip">ضع المنتج في يدك بزر E عند الرف، ثم اقترب من العربة واضغط E لوضعه فيها. ادفع عند الكاشير.</div>
+    </aside>
+
+    <aside id="chatPanel" class="glassPanel chatPanel hud hidden">
+      <div class="panelHeading"><div><small>الاتصال بالعالم</small><h3>دردشة الغرفة</h3></div><button id="closeChat" class="closeButton">×</button></div>
+      <div id="playersStrip" class="playersStrip"><span class="playersCount">👥 <b id="playersCount">1</b>/10</span><span class="voiceStatus" id="voiceStatus">الصوت مغلق</span></div>
+      <div id="chatMessages" class="chatMessages"><div class="emptyChat">ابدأوا الحديث 👋</div></div>
+      <form id="chatForm" class="chatForm"><input id="chatInput" maxlength="300" autocomplete="off" placeholder="اكتب رسالة..." /><button aria-label="إرسال">➤</button></form>
+      <div class="chatTip">احكوا مع بعض بالشات أو فعّلوا المايك للصوت المباشر.</div>
+    </aside>
+
+    <div id="interactionPrompt" class="interactionPrompt hud hidden"><kbd id="interactionKey">E</kbd><span id="interactionText">اقترب وتفاعل</span></div>
+    <div id="toast" class="toast" role="status"></div>
+
+    <footer id="hudBottom" class="hud hidden">
+      <div class="controlHint"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>للحركة</span><i></i><kbd>Mouse</kbd><span>للنظر</span><i></i><kbd>E</kbd><span>للتفاعل</span><i></i><kbd>F</kbd><span>لالتقاط</span></div>
+      <div class="worldStatus"><span class="sunIcon">☀</span><span>اليوم <b id="dayValue">01</b></span><span class="statusDivider"></span><span class="clockValue" id="clockValue">08:00</span><span class="statusDivider"></span><span id="storeStatusValue">الدكان مفتوح</span><span class="statusDivider"></span><span id="worldLabel">حيّ الرمال</span></div>
+    </footer>
+
+    <div id="touchControls" class="hud hidden">
+      <div id="joystick" class="joystick"><div id="joystickKnob"></div></div>
+      <button id="touchAction" class="touchAction">E<br><small>تفاعل</small></button>
+      <button id="touchPickup" class="touchPickup">F<br><small>التقاط</small></button>
+      <div class="lookHelp">حرّك إصبعك هنا لتدوير الكاميرا</div>
+    </div>
+
+    <section id="entryScreen" class="entryScreen">
+      <div class="entryBackdrop"></div>
+      <div class="entryCard">
+        <div class="entryBrand"><img class="entryLogo" src="/logo.svg" alt="شعار الشغيل" /><span class="versionTag">نسخة تجريبية 1.0</span></div>
+        <div class="heroCopy"><div class="eyebrow"><span class="liveDot"></span> عالم مفتوح · حياة · وظائف · تجارة</div><h1>الشغيل،<br/><span>حياتك على كيفك.</span></h1><p>ابدأ من دكّان فاضي بـ100 دولار، اشترِ التجهيزات وابنِ مشروعك بنفسك، أو اشتغل ميكانيكي أو شرطي أو فني IT وإلكترونيات مع أصحابك.</p></div>
+        <div class="nameField"><label for="playerName">اسمك داخل اللعبة</label><input id="playerName" maxlength="18" placeholder="اكتب اسمك" value="معتز" /></div>
+        <div class="modeCards">
+          <button class="modeCard soloMode" id="soloButton"><span class="modeIcon">🚶</span><span class="modeText"><b>العب بمفردك</b><small>عالم خاص محفوظ على جهازك</small></span><span class="cardArrow">←</span></button>
+          <button class="modeCard createMode" id="createButton"><span class="modeIcon">🌐</span><span class="modeText"><b>أنشئ غرفة خاصة</b><small>ابدأ عالمك وادعُ أصحابك</small></span><span class="cardArrow">←</span></button>
+        </div>
+        <div class="joinRow"><div><b>عندك رمز غرفة؟</b><small>ادخل إلى عالم أصحابك</small></div><input id="roomCodeInput" maxlength="5" placeholder="ABCDE" aria-label="رمز الغرفة" /><button id="joinButton">دخول الغرفة</button></div>
+        <details class="serverConfig" id="serverConfigPanel"><summary>إعداد اتصال اللعب الجماعي</summary><p><b>مهم:</b> رابط Netlify هو رابط الواجهة، وليس خادم الغرف. انشر المشروع الكامل على Render أولاً، ثم الصق رابط خدمة Render هنا. مثال: <code>https://alshagheel-game-server.onrender.com</code></p><div class="serverConfigRow"><input id="serverUrlInput" type="url" inputmode="url" autocomplete="url" placeholder="https://اسم-الخادم.onrender.com" aria-label="رابط خادم اللعب الجماعي"/><button id="saveServerUrlButton" type="button">حفظ الرابط</button></div><button class="secondaryButton fullWidth serverTestButton" id="testServerButton" type="button">اختبر الاتصال واحفظ الرابط</button><div id="serverConnectionStatus" class="serverConnectionStatus" role="status" aria-live="polite">لم يتم التحقق من خادم الغرف بعد.</div><p class="serverHelp">إذا أعطاك الاختبار أن الخادم يعمل، ارجع وأنشئ غرفة جديدة وشارك الرمز مع أصحابك. لا تستخدم رابط Netlify في هذا الحقل.</p></details>
+        <div class="entryOptionsNote"><b>بداية عادلة</b><span>100$ · أرضية محل فاضية · بدون رفوف أو كاشير أو عربة مجانية</span></div>
+        <button class="freshStartButton" id="freshStartButton">↻ ابدأ حياة جديدة من الصفر <small>يمسح حفظ العالم الفردي ويعيد الرصيد إلى 100$ والدكان فارغاً</small></button>
+        <div class="entryFeatures"><span>🎙️ صوت وشات</span><span>👮 شرطة وبلاغات</span><span>🔧 ميكانيكي</span><span>💻 IT وإلكترونيات</span><span>🎥 منظوران</span></div>
+        <div class="entryFoot">في الجماعي، منشئ الغرفة يوزّع الوظائف والزي على اللاعبين. أسماء اللاعبين تظهر فوق شخصياتهم، والوقت والرصيد وحالة الدكان تتزامن للجميع.</div>
+      </div>
+      <div class="entrySideNote"><span>01</span><i></i> اصنع عالمك مع أصحابك</div>
+    </section>
+
+    <section id="tutorialModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+      <div class="smallModal tutorialModal">
+        <button class="closeButton modalX" id="tutorialClose" aria-label="إغلاق الدليل">×</button>
+        <div class="modalIcon">🧭</div><small>دليلك في الشغيل</small>
+        <h2 id="tutorialTitle">ابدأ حياتك بـ100$</h2>
+        <p>اتبع الخطوات بالترتيب. لا تحتاج أن تعرف كل شيء من البداية.</p>
+        <div class="guideBalance"><span class="guideMoney">$100</span><span><b>رصيد البداية</b><small>الدكان فارغ تماماً: أنت تشتري الرفوف والكاشير والحاسوب والعربة.</small></span></div>
+        <div class="tutorialSteps">
+          <div class="tutorialStep"><span>1</span><div><b>جهّز دكانك بنفسك</b><p>افتح «شراء تجهيزات وبناء الدكان»، واشترِ رفاً للصنف الذي تريده؛ الكاشير والحاسوب والعربة والثلاجات كلها مشتريات وليست موجودة في البداية.</p></div></div>
+          <div class="tutorialStep"><span>2</span><div><b>اشترِ البضاعة وعبّئ الرف</b><p>اختر المنتج في لوحة الإدارة واشتري حزمة مخزون؛ يظهر صندوق التسليم عند وجود البضاعة. التقط كل قطعة بيدك وضعها على الرف المطابق.</p></div></div>
+          <div class="tutorialStep"><span>3</span><div><b>اختَر وظيفة</b><p>في الفردي اختَر وظيفتك من زر «الوظائف». في الغرفة الجماعية، منشئ الغرفة وحده يعيّن وظيفة كل لاعب، ويظهر زي الوظيفة واسمه فوق الشخصية.</p></div></div>
+          <div class="tutorialStep"><span>4</span><div><b>اعمل وحقّق دخل</b><p>الميكانيكي يصلح مركبة، فني IT يصلح حاسوباً، فني الإلكترونيات يصلح جهازاً، والشرطي يتعامل مع بلاغات مشتبه بهم في الحارة.</p></div></div>
+          <div class="tutorialStep"><span>5</span><div><b>الوقت والمنظور</b><p>الوقت يمر، والدكان يعمل من 08:00 إلى 22:00. يقدر المضيف يفتح أو يغلق يدوياً. زر الكاميرا يبدّل بين منظور الشخص الأول والثالث.</p></div></div>
+        </div>
+        <div class="controlsGuide">
+          <div><b>الكمبيوتر</b><span><kbd>W A S D</kbd> حركة · اضغط داخل العالم ثم حرّك الماوس للنظر · <kbd>E</kbd> تفاعل · <kbd>F</kbd> التقاط · <kbd>G</kbd> إرجاع</span></div>
+          <div><b>الموبايل</b><span>العصا يساراً للحركة، اسحب على الشاشة للنظر، واضغط زري التفاعل أو الالتقاط.</span></div>
+        </div>
+        <div class="tutorialActions"><button class="primaryButton fullWidth" id="tutorialStartButton">فهمت، ابدأ اللعب</button><small>في الغرفة الخاصة، المال والمخزون مشتركان بين اللاعبين. هذه نسخة تجريبية؛ الواقعية والزبائن المتحركون ما زالوا قيد التطوير.</small></div>
+      </div>
+    </section>
+
+    <section id="paymentModal" class="modalOverlay hidden">
+      <div class="smallModal paymentModal">
+        <button class="closeButton modalX" id="paymentCancel">×</button>
+        <div class="modalIcon" id="paymentIcon">💳</div><small id="paymentKicker">إتمام العملية</small>
+        <h2 id="paymentTitle">الدفع عند الكاشير</h2><p id="paymentDescription">اختر طريقة الدفع.</p>
+        <div class="paymentTotal"><span>المبلغ</span><b id="paymentAmount">$0</b></div>
+        <div class="paymentMethods">
+          <button class="paymentChoice" id="payCash"><span class="payIcon">💵</span><b>نقداً</b><small>دفع نقدي داخل اللعبة</small></button>
+          <button class="paymentChoice" id="payVisa"><span class="payIcon">💳</span><b>Visa</b><small>بطاقة افتراضية داخل اللعبة</small></button>
+        </div>
+        <p class="paymentFinePrint">خيارات الدفع محاكاة داخل اللعبة وليست عمليات بنكية حقيقية.</p>
+      </div>
+    </section>
+
+    <section id="upgradesModal" class="modalOverlay hidden">
+      <div class="smallModal upgradesModal">
+        <button class="closeButton modalX" id="upgradesCancel">×</button>
+        <div class="modalIcon">🏪</div><small>استثمر الأرباح</small><h2>تطوير المتجر</h2>
+        <p>التطوير يُخصم من خزنة العالم المشتركة ويغيّر قدرات المتجر.</p>
+        <div class="buildCatalog">
+          <div class="catalogTitle">ابدأ بتجهيز الدكان — اضغط لشراء كل قطعة</div>
+          <button class="upgradeChoice" id="buildShelf"><span>🧺</span><span><b>رف للصنف المختار</b><small>ينشئ رفاً فعلياً للصنف الذي اخترته</small></span><em>$25</em></button>
+          <button class="upgradeChoice" id="buildRegister"><span>🧾</span><span><b>كاشير ونقطة دفع</b><small>يفتح البيع ومحاسبة الزبائن</small></span><em>$20</em></button>
+          <button class="upgradeChoice" id="buildComputer"><span>💻</span><span><b>حاسوب إدارة</b><small>يظهر المكتب والحاسوب داخل الدكان</small></span><em>$15</em></button>
+          <button class="upgradeChoice" id="buildCart"><span>🛒</span><span><b>عربة تسوّق</b><small>عربة مرئية قابلة للمسك والدفع</small></span><em>$10</em></button>
+          <button class="upgradeChoice" id="buildFridges"><span>🧊</span><span><b>ثلاجات عرض</b><small>تجهيز إضافي للمحل</small></span><em>$45</em></button>
+          <button class="upgradeChoice" id="buildItBench"><span>🖥️</span><span><b>طاولة صيانة IT</b><small>تجهيز إضافي لمهام التقنية</small></span><em>$45</em></button>
+          <button class="upgradeChoice" id="buildElectronics"><span>📱</span><span><b>واجهة إلكترونيات</b><small>ركن صيانة وعرض أجهزة</small></span><em>$55</em></button>
+        </div>
+        <div class="catalogTitle upgradesTitle">تطويرات بعد التأسيس</div>
+        <div class="upgradeChoices">
+          <button class="upgradeChoice" id="upgradeShelf"><span>🧺</span><span><b>فتح الرف العلوي</b><small>6 خانات إضافية لكل منتج</small></span><em>$150</em></button>
+          <button class="upgradeChoice" id="upgradeWarehouse"><span>📦</span><span><b>توسعة المستودع</b><small>طلبات أكبر: 12 قطعة بدل 6</small></span><em>$80</em></button>
+          <button class="upgradeChoice" id="upgradeCheckout"><span>🧾</span><span><b>كاشير إضافي</b><small>إضافة نقطة محاسبة إلى المتجر</small></span><em>$250</em></button>
+          <button class="upgradeChoice" id="upgradeExpansion"><span>🏗️</span><span><b>توسعة مساحة المتجر</b><small>فتح جناح جديد قابل للتجول</small></span><em>$500</em></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="jobModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="jobModalTitle">
+      <div class="smallModal jobModal">
+        <button class="closeButton modalX" id="jobsClose" aria-label="إغلاق الوظائف">×</button>
+        <div class="modalIcon">💼</div><small>المهن والزي</small><h2 id="jobModalTitle">اختر طريقك في الحارة</h2>
+        <p id="jobModalHint">في العالم الفردي اختر وظيفتك بنفسك؛ في الغرف الجماعية منشئ الغرفة يعيّن وظيفة كل لاعب.</p>
+        <div id="jobAssignments" class="jobAssignments"></div>
+        <div class="jobFooterNote">يتغيّر لون الزي حسب الوظيفة، واسم اللاعب ووظيفته يظهران فوق شخصيته في المنظور الثالث وعند رؤية اللاعبين الآخرين.</div>
+      </div>
+    </section>
+
+    <section id="pauseMenu" class="modalOverlay hidden"><div class="smallModal"><button class="closeButton modalX" id="resumeX">×</button><div class="modalIcon">⏸</div><small>قائمة العالم</small><h2>خذ نفساً، العالم إلك</h2><p>تقدر تكمل لعبك أو ترجع لشاشة البداية.</p><button class="primaryButton fullWidth" id="resumeButton">متابعة اللعب</button><button class="secondaryButton fullWidth" id="viewPauseButton">تبديل منظور الكاميرا</button><button class="secondaryButton fullWidth" id="jobsPauseButton">الوظائف والزي</button><button class="secondaryButton fullWidth" id="restartSoloButton">إعادة الحياة من الصفر</button><button class="secondaryButton fullWidth" id="leaveButton">الخروج من العالم</button></div></section>
+  </main>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="/config.js"></script>
+  <script type="module" src="/game.js"></script>
+</body>
+</html>

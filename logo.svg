@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 210" role="img" aria-labelledby="title desc">
+  <title id="title">الشغيل</title><desc id="desc">شعار لعبة الشغيل لمحاكاة الحياة والعمل</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d3c32"/><stop offset="1" stop-color="#0c1718"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe8a5"/><stop offset=".53" stop-color="#e4ad4d"/><stop offset="1" stop-color="#b97622"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#000" flood-opacity=".7"/></filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M55 55h610l-15 43H70z" fill="#f3e7d0" stroke="#121b18" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M60 58h86v38H72z" fill="#a94c38"/><path d="M146 58h86v38h-86z" fill="#f7e8ca"/><path d="M232 58h86v38h-86z" fill="#a94c38"/><path d="M318 58h86v38h-86z" fill="#f7e8ca"/><path d="M404 58h86v38h-86z" fill="#a94c38"/><path d="M490 58h86v38h-86z" fill="#f7e8ca"/><path d="M576 58h82l-13 38h-69z" fill="#a94c38"/>
+    <rect x="33" y="88" width="654" height="94" rx="20" fill="url(#base)" stroke="#e5b657" stroke-width="5"/>
+    <path d="M306 45l9-22 19 15 18-30 15 32 23-8-8 27z" fill="url(#gold)" stroke="#352719" stroke-width="4" stroke-linejoin="round"/>
+    <text x="360" y="151" text-anchor="middle" direction="rtl" unicode-bidi="plaintext" font-family="Tahoma, Arial, sans-serif" font-weight="900" font-size="65" fill="url(#gold)" stroke="#1b211d" stroke-width="2" paint-order="stroke">الشغيل</text>
+    <text x="360" y="174" text-anchor="middle" direction="rtl" unicode-bidi="plaintext" font-family="Tahoma, Arial, sans-serif" font-weight="700" font-size="16" fill="#f3ead8" letter-spacing="1">حياتك، على كيفك</text>
+    <g transform="translate(600 129)" fill="none" stroke="#e5b657" stroke-width="4" stroke-linejoin="round"><path d="M-21-2h10l5 22h20l5-16h-26"/><circle cx="-2" cy="28" r="3" fill="#e5b657"/><circle cx="11" cy="28" r="3" fill="#e5b657"/></g>
+  </g>
+</svg>
