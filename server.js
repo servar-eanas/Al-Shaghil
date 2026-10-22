@@ -25,17 +25,18 @@ app.get('/health', (_req, res) => res.json({ ok: true, game: 'الشغيل', ver
 
 const JOB_IDS = new Set(['shopkeeper','mechanic','police','it','electronics','criminal','delivery','unassigned']);
 const freshGame = () => ({
-  schemaVersion: 9, balance: 100, day: 1, gameMinutes: 480, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, capacity: 12, storageLevel: 0, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
-  fixtures: { shelves:{water:false,chips:false,milk:false}, register:false, computer:false, cart:false, fridges:false, itBench:false, electronics:false },
+  schemaVersion: 9, balance: 200, day: 1, gameMinutes: 480, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, capacity: 12, storageLevel: 0, easyStartGranted: true, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
+  fixtures: { shelves:{water:true,chips:false,milk:false}, register:false, computer:true, cart:false, fridges:false, itBench:false, electronics:false },
   upgrades: { topShelf: false, warehouse: false, checkout: false, expansion: false },
   inventory: {
-    water: { name: 'مياه', price: 4, cost: 2, pack: 6, stock: 0, shelf: 0, shelfSlots: [], color: '#62c3f5' },
+    water: { name: 'مياه', price: 4, cost: 2, pack: 6, stock: 6, shelf: 0, shelfSlots: [], color: '#62c3f5' },
     chips: { name: 'شيبس', price: 6, cost: 3, pack: 6, stock: 0, shelf: 0, shelfSlots: [], color: '#f5ad42' },
     milk: { name: 'حليب', price: 8, cost: 4, pack: 6, stock: 0, shelf: 0, shelfSlots: [], color: '#f0eee8' }
   }
 });
 function normalizeGame(data) {
   const base = freshGame();
+  const needsStarterGrant = data?.easyStartGranted !== true;
   // Old prototypes are intentionally reset so the empty-shop start cannot inherit test money or free fixtures.
   if (!data || typeof data !== 'object' || data.schemaVersion !== 9) return base;
   const merged = { ...base, ...data, cart: Array.isArray(data.cart) ? data.cart.filter(k => ['water','chips','milk'].includes(k)) : [], cartPose: { ...base.cartPose, ...(data.cartPose || {}) }, vehiclePose: { ...base.vehiclePose, ...(data.vehiclePose || {}) }, fixtures: { ...base.fixtures, ...(data.fixtures || {}), shelves: { ...base.fixtures.shelves, ...(data.fixtures?.shelves || {}) } }, upgrades: { ...base.upgrades, ...(data.upgrades || {}) }, inventory: { ...base.inventory, ...(data.inventory || {}) } };
@@ -50,6 +51,15 @@ function normalizeGame(data) {
     item.shelf = item.shelfSlots.length;
     item.stock = Math.max(0, Number(item.stock) || 0);
     merged.inventory[key] = item;
+  }
+  // Grant the beginner kit once to existing saved rooms while preserving all other progress.
+  if (needsStarterGrant) {
+    merged.balance = Math.max(0, Number(merged.balance) || 0) + 100;
+    merged.fixtures.computer = true;
+    merged.fixtures.shelves.water = true;
+    const starterWater = merged.inventory.water;
+    if (starterWater && (Number(starterWater.stock) || 0) < 1 && (Number(starterWater.shelf) || 0) < 1) starterWater.stock = 6;
+    merged.easyStartGranted = true;
   }
   return merged;
 }
