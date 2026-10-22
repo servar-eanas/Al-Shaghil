@@ -417,7 +417,7 @@ io.on('connection', socket => {
     if (!JOB_IDS.has(job) || job === 'unassigned' || actor.job !== job) return ack({ok:false,error:'هذه المهمة ليست ضمن وظيفتك الحالية.'});
     const now = Date.now(), last = room.lastGameTaskByPlayer.get(socket.id) || 0;
     if (now-last < 8000) return ack({ok:false,error:'استرح قليلاً قبل تنفيذ المهمة التالية.'});
-    const points = {mechanic:[-34,11.25],it:[22,12.25],electronics:[34,11.55],delivery:[-42,11.25],criminal:[13,23.3]};
+    const points = {shopkeeper:[-3.85,-5.15],mechanic:[-34,11.25],it:[22,12.25],electronics:[34,11.55],delivery:[-42,11.25],criminal:[13,23.3]};
     let valid = false, message = '', reward = 0;
     if (job === 'police') {
       const nearNpc = Math.hypot(actor.x-6, actor.z-22) < 5.8;
