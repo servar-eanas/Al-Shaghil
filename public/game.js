@@ -238,6 +238,8 @@ box(orderDeskGroup, 'laptop desk', -5.45, 0.58, -2.3, 2.1, 1.05, 0.88, mat('desk
 box(orderDeskGroup, 'laptop base', -5.45, 1.14, -2.28, 0.75, 0.05, 0.5, mat('laptop body', '#4b5d59', 0.42));
 box(orderDeskGroup, 'laptop screen', -5.45, 1.4, -2.51, 0.75, 0.5, 0.07, mat('laptop display', '#30594f', 0.35, { emissive: '#1b5d4a', emissiveIntensity: 0.35 }), { rotation: [-0.15, 0, 0] });
 const deskLabel = labelSprite('الطلبيات', { bg: '#3d2d22', fontSize: 42, width: 320, height: 100 }); deskLabel.position.set(-5.45, 1.92, -2.35); deskLabel.scale.set(1.1, 0.34, 1); orderDeskGroup.add(deskLabel);
+const shopkeeperTaskMarker = labelSprite('مهمة صاحب الدكان', { bg: '#234d41ee', color: '#fff0bc', fontSize: 34, width: 440, height: 96 });
+shopkeeperTaskMarker.position.set(-2.15, 2.05, -5.15); shopkeeperTaskMarker.scale.set(1.65, 0.36, 1); world.add(shopkeeperTaskMarker);
 // Shop shelving. Product units are real scene objects tied to unique shelf slots;
 // a new world starts with every slot empty.
 const shelfXs = [-2.25, 0.9, 4.05];
@@ -1135,7 +1137,7 @@ function updateJobGuide(state = gameState, force = false) {
     else if (!shelfReady) text.textContent = '٢) اختر صنفاً من القائمة ثم اشترِ رفّه بـ$25. بعد ذلك اطلب بضاعة من زر «شراء بضاعة للمخزن».';
     else if (!anyGoods) text.textContent = '٣) اختر الصنف ثم اضغط «شراء بضاعة للمخزن». خذ القطع من المخزن وضعها على الرف الذي يحمل الصنف نفسه.';
     else if (!state.fixtures?.register) text.textContent = '٤) جهّز الرف والبضاعة، ثم اشترِ الكاشير بـ$20 لتبيع المنتجات وتنجز مهام صاحب الدكان.';
-    else text.textContent = 'التقط قطعة من الرف أو عبّئه من المخزن. عند الكاشير اضغط E لبيع قطعة أو لمحاسبة العربة. يمكنك إنجاز مهمة صاحب الدكان عند الكاشير.';
+    else text.textContent = 'التقط قطعة من الرف أو عبّئه من المخزن. عند الكاشير اضغط E للبيع أو للمحاسبة. لإنجاز المهمة، اتبع العلامة «مهمة صاحب الدكان» الخضراء بجانب الكاشير واضغط E.';
     return;
   }
   const spots = {
@@ -1293,7 +1295,7 @@ function performJobTask(job) {
   }
   const now = Date.now();
   if (now - localJobCooldown < 5000) return toast('خذ وقتك، المهمة التالية بعد قليل.');
-  const locations = { shopkeeper:[-3.85,-5.15], mechanic:[-34,11.25], it:[22,12.25], electronics:[34,11.55], delivery:[-42,11.25], criminal:[13,23.3] };
+  const locations = { shopkeeper:[-2.15,-5.15], mechanic:[-34,11.25], it:[22,12.25], electronics:[34,11.55], delivery:[-42,11.25], criminal:[13,23.3] };
   if (job === 'police') {
     if (!robberNpc?.visible || distanceXZ(playerPosition.x, playerPosition.z, robberNpc.position.x, robberNpc.position.z) > 3.7) return toast('اقترب من المشتبه به في الشارع ثم اضغط E.');
     robberNpc.visible = false; setTimeout(() => { robberNpc.visible = true; }, 14000);
@@ -1444,7 +1446,8 @@ function createMultiRoom(type) {
 function startSoloWorld({ fresh = false } = {}) {
   playerName = $('playerName').value.trim().slice(0,18) || 'لاعب';
   currentJob = 'shopkeeper';
-  if (!fresh) { try { const savedJob = localStorage.getItem(soloJobStorageKey); if (JOBS[savedJob] && savedJob !== 'unassigned') currentJob = savedJob; } catch {} }
+  if (fresh) { try { localStorage.removeItem(soloJobStorageKey); } catch {} }
+  else { try { const savedJob = localStorage.getItem(soloJobStorageKey); if (JOBS[savedJob] && savedJob !== 'unassigned') currentJob = savedJob; } catch {} }
   isRoomHost = false; roomHostId = null; roomPlayers = [];
   try {
     if (fresh) localStorage.removeItem(soloStorageKey);
@@ -1865,7 +1868,7 @@ const targets = [
   { id:'shelf-milk', label:'رف الألبان', x:5.02, z:-0.55, type:'shelf', product:'milk' },
   { id:'shopping-cart', label:'عربة التسوق', x:6.35, z:4.05, type:'cart' },
   { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-8, z:20.15, type:'vehicle', job:'police' },
-  { id:'job-shopkeeper', label:'الكاشير — إدارة أعمال الدكان', x:-3.85, z:-5.15, type:'jobTask', job:'shopkeeper', icon:'🧾' },
+  { id:'job-shopkeeper', label:'مهمة صاحب الدكان — بجانب الكاشير', x:-2.15, z:-5.15, type:'jobTask', job:'shopkeeper', icon:'🧾' },
   { id:'job-mechanic', label:'ورشة الميكانيك — صيانة مركبة', x:-34, z:11.25, type:'jobTask', job:'mechanic', icon:'🔧' },
   { id:'job-it', label:'مكتب تقنية المعلومات — إصلاح حاسوب', x:22, z:12.25, type:'jobTask', job:'it', icon:'💻' },
   { id:'job-electronics', label:'محل الإلكترونيات — صيانة جهاز', x:34, z:11.55, type:'jobTask', job:'electronics', icon:'📱' },
