@@ -1994,7 +1994,6 @@ $('touchPickup').addEventListener('click', pickFocusedProduct);
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'KeyV' && active && !e.repeat) setCameraView(cameraView === 'first' ? 'third' : 'first');
-  if (e.code === 'KeyV' && active && !e.repeat) setCameraView(cameraView === 'first' ? 'third' : 'first');
   if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   if (e.code === 'KeyE' && !e.repeat) interact();
   if (e.code === 'KeyF' && !e.repeat) pickFocusedProduct();
