@@ -146,3 +146,13 @@
   .jobGuide b{font-size:10px}
   .jobGuide p{font-size:9px;line-height:1.75}
 }
+
+
+/* Keyboard shortcuts guide */
+.shortcutModal{width:min(620px,100%);max-height:calc(100dvh - 24px);overflow:auto}
+.shortcutGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:14px 0}
+.shortcutGrid>div{display:flex;align-items:center;gap:10px;min-width:0;padding:9px 10px;border-radius:10px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07)}
+.shortcutGrid kbd{flex:0 0 auto;min-width:44px;text-align:center;direction:ltr;background:#263a3a;border:1px solid #48605a;border-radius:6px;padding:5px 7px;color:#e6f4eb;font:800 10px Manrope,sans-serif}
+.shortcutGrid span{font-size:10px;line-height:1.65;color:#c5d5cc}
+.shortcutDone{margin-top:6px}
+@media(max-width:660px){.shortcutModal{padding:20px 14px}.shortcutGrid{grid-template-columns:1fr}.shortcutGrid>div{padding:8px}.shortcutGrid span{font-size:10px}}
