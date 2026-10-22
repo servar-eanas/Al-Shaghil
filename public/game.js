@@ -2228,12 +2228,22 @@ function findNpcPath(startX,startZ,targetX,targetZ,zone) {
   }
   return smooth;
 }
-function chooseNpcDestination(g) {
+function chooseNpcDestination(g,time=0) {
   const data=g.userData,zone=data.zone;
-  for(let tries=0;tries<18;tries++) {
-    // Customers move between aisles and the storefront; the suspect patrols the nearby street.
-    const targetX=zone.minX+.7+Math.random()*Math.max(.1,zone.maxX-zone.minX-1.4);
-    const targetZ=zone.minZ+.7+Math.random()*Math.max(.1,zone.maxZ-zone.minZ-1.4);
+  const fleeing=data.behavior==='suspect'&&currentJob==='police'&&!isDriving&&distanceXZ(g.position.x,g.position.z,playerPosition.x,playerPosition.z)<8.5;
+  if(fleeing)data.fleeUntil=time+2.8;
+  for(let tries=0;tries<22;tries++) {
+    let targetX,targetZ;
+    if(fleeing) {
+      const awayX=g.position.x-playerPosition.x,awayZ=g.position.z-playerPosition.z;
+      const len=Math.max(.001,Math.hypot(awayX,awayZ));
+      const escapeDistance=3.0+Math.random()*2.5;
+      targetX=THREE.MathUtils.clamp(g.position.x+awayX/len*escapeDistance+(Math.random()-.5)*1.6,zone.minX+.45,zone.maxX-.45);
+      targetZ=THREE.MathUtils.clamp(g.position.z+awayZ/len*escapeDistance+(Math.random()-.5)*1.6,zone.minZ+.45,zone.maxZ-.45);
+    } else {
+      targetX=zone.minX+.7+Math.random()*Math.max(.1,zone.maxX-zone.minX-1.4);
+      targetZ=zone.minZ+.7+Math.random()*Math.max(.1,zone.maxZ-zone.minZ-1.4);
+    }
     if(Math.hypot(targetX-g.position.x,targetZ-g.position.z)<1.45)continue;
     const path=findNpcPath(g.position.x,g.position.z,targetX,targetZ,zone);
     if(path.length) {
@@ -2250,9 +2260,13 @@ function updateAmbient(dt,time) {
     const data=g.userData,zone=data.zone;
     data.wait=Math.max(0,(data.wait||0)-dt);
     let walking=false;
+    const policeNear=data.behavior==='suspect'&&currentJob==='police'&&!isDriving&&distanceXZ(g.position.x,g.position.z,playerPosition.x,playerPosition.z)<8.5;
+    if(policeNear&&(!data.fleeUntil||data.fleeUntil<=time)) {
+      data.path=[];data.pathIndex=0;data.wait=0;
+    }
     if((!data.path||data.pathIndex>=data.path.length)&&data.wait<=0) {
-      data.wait=.6+Math.random()*1.9;
-      chooseNpcDestination(g);
+      chooseNpcDestination(g,time);
+      if(!data.path?.length)data.wait=.6+Math.random()*1.2;
     }
     const point=data.path?.[data.pathIndex];
     if(point) {
