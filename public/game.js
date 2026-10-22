@@ -114,6 +114,8 @@ let yaw = 0;
 let pitch = 0;
 let elapsed = 0;
 let localNoticeCooldown = 0;
+// Keep collision storage initialized before any UI/state setup can inspect it.
+const worldBlockers = [];
 
 // -----------------------------------------------------------------------------
 // Three.js world: stylized, hand-built neighborhood and supermarket.
@@ -1743,7 +1745,7 @@ $('voiceButton').addEventListener('click', toggleVoice);
 // First-person movement, touch controls, interactions, and animation loop.
 // -----------------------------------------------------------------------------
 const PLAYER_RADIUS = 0.29;
-const worldBlockers = [];
+
 let mainBackWallBlocker = null;
 function addBlocker(cx, cz, halfX, halfZ, id = '') {
   const blocker = { id, minX: cx - halfX, maxX: cx + halfX, minZ: cz - halfZ, maxZ: cz + halfZ, active: true };
