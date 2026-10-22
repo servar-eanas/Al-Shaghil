@@ -124,8 +124,8 @@ const worldBlockers = [];
 // -----------------------------------------------------------------------------
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xb8d5d5);
-scene.fog = new THREE.Fog(0xb8d5d5, 38, 115);
-const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.08, 180);
+scene.fog = new THREE.Fog(0xb8d5d5, 58, 220);
+const camera = new THREE.PerspectiveCamera(74, innerWidth / innerHeight, 0.08, 280);
 // Put the camera in the scene graph so first-person hands and the held product,
 // parented to the camera, are included in Three.js scene traversal and actually render.
 scene.add(camera);
@@ -146,11 +146,17 @@ const sun = new THREE.DirectionalLight(0xffe2b4, 3.1);
 sun.position.set(-24, 34, 18);
 sun.castShadow = true;
 sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.left = -38; sun.shadow.camera.right = 38; sun.shadow.camera.top = 38; sun.shadow.camera.bottom = -38;
+sun.shadow.camera.left = -72; sun.shadow.camera.right = 72; sun.shadow.camera.top = 72; sun.shadow.camera.bottom = -72;
 sun.shadow.bias = -0.0003;
 scene.add(sun);
 
 const mats = {};
+const nightWindowMaterials = [];
+const cityPointLights = [];
+const daySkyColor = new THREE.Color(0xb8d5d5);
+const duskSkyColor = new THREE.Color(0xd99075);
+const nightSkyColor = new THREE.Color(0x111d30);
+const currentSkyColor = new THREE.Color();
 function mat(name, color, roughness = 0.82, extra = {}) {
   if (!mats[name]) mats[name] = new THREE.MeshStandardMaterial({ color, roughness, ...extra });
   return mats[name];
@@ -183,7 +189,7 @@ function labelSprite(text, { color = '#edf5ee', bg = '#1f3935', fontSize = 48, w
 
 const world = new THREE.Group(); scene.add(world);
 // Open sky-wide desert ground and distant sand mounds.
-box(world, 'sand ground', 0, -0.22, 0, 130, 0.4, 130, mat('sand', '#c5b18b', 1), { castShadow: false });
+box(world, 'sand ground', 0, -0.22, 0, 230, 0.4, 230, mat('sand', '#c5b18b', 1), { castShadow: false });
 for (let i = 0; i < 18; i++) {
   const x = -54 + (i % 6) * 21 + Math.sin(i * 2.1) * 4;
   const z = -38 - Math.floor(i / 6) * 20;
@@ -191,10 +197,20 @@ for (let i = 0; i < 18; i++) {
   mound.scale.set(12 + (i % 4) * 3, 3 + (i % 3), 7 + (i % 3) * 2); mound.position.set(x, -0.4, z); mound.castShadow = false; mound.receiveShadow = true; world.add(mound);
 }
 // Asphalt road with curb, lane paint and sidewalk.
-box(world, 'road', 0, -0.02, 19.2, 110, 0.12, 8.5, mat('road', '#555d5c', 0.96), { castShadow: false });
-box(world, 'walkway', 0, 0.03, 13.3, 110, 0.16, 2.4, mat('walkway', '#d2c9b5', 0.95), { castShadow: false });
-box(world, 'curb', 0, 0.10, 14.45, 110, 0.21, 0.28, mat('curb', '#e1d7c3'), { castShadow: false });
-for (let x = -53; x < 55; x += 9) box(world, `road marking ${x}`, x, 0.052, 19.2, 4.6, 0.015, 0.13, mat('lane paint', '#eee7d4', 0.9), { castShadow: false });
+box(world, 'road', 0, -0.02, 19.2, 190, 0.12, 8.5, mat('road', '#555d5c', 0.96), { castShadow: false });
+box(world, 'walkway', 0, 0.03, 13.3, 190, 0.16, 2.4, mat('walkway', '#d2c9b5', 0.95), { castShadow: false });
+box(world, 'curb', 0, 0.10, 14.45, 190, 0.21, 0.28, mat('curb', '#e1d7c3'), { castShadow: false });
+for (let x = -92; x < 96; x += 9) box(world, `road marking ${x}`, x, 0.052, 19.2, 4.6, 0.015, 0.13, mat('lane paint', '#eee7d4', 0.9), { castShadow: false });
+// A second avenue and two connectors open the north district for exploration.
+box(world, 'north avenue', 0, -.02, 55, 190, .12, 7.2, mat('road','#555d5c',.96), {castShadow:false});
+for (const x of [-73,73]) {
+  box(world, `north connector ${x}`, x, -.015, 37.1, 6.2, .12, 35.8, mat('road','#555d5c',.96), {castShadow:false});
+  box(world, `north connector walkway west ${x}`, x-4.2,.035,37.1,1.5,.14,35.8,mat('walkway','#d2c9b5',.95),{castShadow:false});
+  box(world, `north connector walkway east ${x}`, x+4.2,.035,37.1,1.5,.14,35.8,mat('walkway','#d2c9b5',.95),{castShadow:false});
+}
+box(world,'north avenue sidewalk south',0,.035,49.7,190,.14,1.7,mat('walkway','#d2c9b5',.95),{castShadow:false});
+box(world,'north avenue sidewalk north',0,.035,60.3,190,.14,1.7,mat('walkway','#d2c9b5',.95),{castShadow:false});
+for(let x=-92;x<96;x+=12)box(world,`north road marking ${x}`,x,.052,55,5,.015,.13,mat('lane paint','#eee7d4',.9),{castShadow:false});
 // Shop slab and outside facade.
 box(world, 'shop outer foundation', 0, -0.02, -1.05, 17.1, 0.28, 15.8, mat('foundation', '#9b9b87'), { castShadow: false });
 box(world, 'shop floor', 0, 0.13, -1.05, 16.3, 0.18, 15.1, mat('tile', '#c9c7b8', 0.7), { castShadow: false });
@@ -468,7 +484,8 @@ function buildHouse(x, z, width, depth, wallColor, roofColor, type = 'home') {
   const frontZ = z + depth/2 + 0.03;
   box(group, `${type} door`, x - width*0.24, 1.12, frontZ, 0.92, 2.2, 0.11, mat(`door ${x}`, '#614f3d', 0.9));
   box(group, `${type} door accent`, x - width*0.24, 1.1, frontZ + 0.07, 0.12, 0.12, 0.04, mat(`door knob ${x}`, '#d5b779', 0.34, { metalness: 0.5 }));
-  const wmat = mat(`house window ${wallColor}`, '#86aaa9', 0.25, { metalness: 0.08 });
+  const wmat = mat(`house window ${wallColor}`, '#86aaa9', 0.25, { metalness: 0.08, emissive: '#ffc86a', emissiveIntensity: 0 });
+  nightWindowMaterials.push(wmat);
   for (const side of [-1,1]) {
     box(group, `${type} window`, x + side*width*0.22, 2.18, frontZ, 1.05, 0.94, 0.1, wmat);
     box(group, `${type} window vertical bar`, x + side*width*0.22, 2.18, frontZ + 0.065, 0.06, 0.95, 0.03, mat(`window bar ${x}`, '#efe5ce'));
@@ -485,11 +502,22 @@ buildHouse(-27, 2, 9, 10, '#c4ae90', '#7f8171', 'shop');
 buildHouse(27, 2, 9, 10, '#c7baa2', '#87765f', 'shop');
 buildHouse(-15, 30, 9, 10, '#d3c7af', '#998a76', 'home');
 buildHouse(15, 31, 10, 11, '#d2c6ab', '#9b7a62', 'home');
+buildHouse(-90, -7, 10, 10, '#c4b394', '#8a9a85', 'shop');
+buildHouse(90, -7, 10, 10, '#c7bdab', '#98836a', 'shop');
+buildHouse(-90, 73, 10, 11, '#d5c6a9', '#9a8970', 'home');
+buildHouse(90, 73, 10, 11, '#c5c9b7', '#b58c6b', 'home');
 // Street lamps and shrubs.
-for (const x of [-31,-22,-9,9,22,31]) {
+for (const x of [-90,-80,-50,-40,-31,-22,-9,9,22,31,40,50,80,90]) {
   cylinder(world, 'street lamp pole', x, 2.1, 14.2, 0.045, 0.06, 4.2, mat('lamp pole', '#505b53'), 8);
   box(world, 'street lamp arm', x + (x < 0 ? .34 : -.34), 4.12, 14.2, .75, .07, .07, mat('lamp arm', '#505b53'));
-  const head = box(world, 'lamp head', x + (x < 0 ? .68 : -.68), 4.02, 14.2, .42, .16, .22, mat('lamp glow', '#f4db9d', .45, { emissive: '#edc46f', emissiveIntensity: .45 }));
+  box(world, 'lamp head', x + (x < 0 ? .68 : -.68), 4.02, 14.2, .42, .16, .22, mat('lamp glow', '#f4db9d', .45, { emissive: '#edc46f', emissiveIntensity: .45 }));
+  const glow=new THREE.PointLight(0xffd28c,0,17,2);glow.position.set(x+(x<0?.68:-.68),3.82,14.2);scene.add(glow);cityPointLights.push(glow);
+}
+for(const lx of [-73,73])for(const z of [27,43,57]){
+  cylinder(world,'avenue lamp pole',lx,2.05,z,.045,.06,4.1,mat('lamp pole','#505b53'),8);
+  box(world,'avenue lamp arm',lx+(lx<0?.3:-.3),4.02,z,.7,.07,.07,mat('lamp arm','#505b53'));
+  box(world,'avenue lamp head',lx+(lx<0?.62:-.62),3.93,z,.36,.15,.2,mat('lamp glow','#f4db9d',.45,{emissive:'#edc46f',emissiveIntensity:.45}));
+  const glow=new THREE.PointLight(0xffd28c,0,18,2);glow.position.set(lx+(lx<0?.62:-.62),3.75,z);scene.add(glow);cityPointLights.push(glow);
 }
 for (let i = 0; i < 28; i++) {
   const side = i % 2 ? -1 : 1;
@@ -516,8 +544,9 @@ function buildCar(x,z,color,police=false) {
   }
   return g;
 }
-const patrolCar = buildCar(-8, 18.6, '#314b78', true);
-const streetCar = buildCar(11, 21.3, '#bd875c', false);
+const patrolCar = buildCar(-54, 42, '#314b78', true);
+const streetCar = buildCar(42, 21.3, '#bd875c', false);
+const farStreetCar = buildCar(82, 55, '#6b8777', false);
 
 // Upgrade visuals are real world geometry, kept hidden until purchased.
 const warehouseUpgradeVisual = new THREE.Group(); world.add(warehouseUpgradeVisual);
@@ -628,6 +657,28 @@ robberNpc.userData.isRobber = true;
 robberNpc.userData.originX = 6; robberNpc.userData.originZ = 22;
 const robberTag = labelSprite('مشتبه به', { bg:'#6c2929ee', color:'#fff4e9', fontSize:34, width:340, height:85 });
 robberTag.position.set(0, 2.12, 0); robberTag.scale.set(.98, .25, 1); robberTag.userData.billboard = true; robberNpc.add(robberTag);
+// Residents and pedestrians populate the expanded neighborhood and north avenue.
+function buildResident(x,z,shirt,phase,zone) {
+  const g=buildNpc(x,z,shirt,phase);g.userData.behavior='resident';g.userData.zone={...zone,step:.9};g.userData.wait=.2+Math.random()*1.2;g.userData.customerState=null;
+  if(g.userData.customerBadge){g.remove(g.userData.customerBadge);g.userData.customerBadge=null;}
+  const tag=labelSprite('من أهل الحي',{bg:'#344955dd',color:'#fff3d8',fontSize:27,width:300,height:75});tag.position.set(0,2.7,0);tag.scale.set(1.05,.26,1);tag.userData.billboard=true;g.add(tag);g.userData.residentBadge=tag;return g;
+}
+const residentColors=['#8eaf9d','#d4a06f','#7997bd','#b38ca9','#c9bd83','#7eaaa9','#b77d6a','#a0a4b3','#d2a979','#6f9882'];
+const residentSeeds=[
+  [-90,11.1,{minX:-96,maxX:-76,minZ:9.5,maxZ:13.4}],[-83,12.1,{minX:-96,maxX:-76,minZ:9.5,maxZ:13.4}],
+  [-43,11.1,{minX:-49,maxX:-34,minZ:9.5,maxZ:13.4}],[-37,12.1,{minX:-49,maxX:-34,minZ:9.5,maxZ:13.4}],
+  [-7,11.2,{minX:-9,maxX:-4,minZ:9.5,maxZ:13.4}],[7,11.2,{minX:4,maxX:9,minZ:9.5,maxZ:13.4}],
+  [39,11.1,{minX:34,maxX:49,minZ:9.5,maxZ:13.4}],[46,12.1,{minX:34,maxX:49,minZ:9.5,maxZ:13.4}],
+  [88,11.1,{minX:82,maxX:97,minZ:9.5,maxZ:13.4}],
+  [-90,27,{minX:-96,maxX:-72,minZ:25,maxZ:28.7}],[-80,27.8,{minX:-96,maxX:-72,minZ:25,maxZ:28.7}],
+  [-31,27,{minX:-35,maxX:-22,minZ:25,maxZ:28.7}],[-24,27.8,{minX:-35,maxX:-22,minZ:25,maxZ:28.7}],
+  [0,27.2,{minX:-8,maxX:8,minZ:25,maxZ:28.7}],[27,27,{minX:22,maxX:42,minZ:25,maxZ:28.7}],
+  [38,27.8,{minX:22,maxX:42,minZ:25,maxZ:28.7}],[55,27,{minX:50,maxX:69,minZ:25,maxZ:28.7}],
+  [66,27.8,{minX:50,maxX:69,minZ:25,maxZ:28.7}],[89,27.2,{minX:84,maxX:97,minZ:25,maxZ:28.7}],
+  [-88,54,{minX:-96,maxX:-76,minZ:51.5,maxZ:59}],[-62,54,{minX:-68,maxX:-47,minZ:51.5,maxZ:59}],
+  [48,54,{minX:45,maxX:66,minZ:51.5,maxZ:59}],[88,54,{minX:76,maxX:96,minZ:51.5,maxZ:59}]
+];
+residentSeeds.forEach(([x,z,zone],i)=>buildResident(x,z,residentColors[i%residentColors.length],1.7+i*1.31,zone));
 
 function makeAvatar(name, color = '#477b63', job = 'unassigned', wanted = false) {
   const g = new THREE.Group(); g.userData.job = job; g.userData.name = name; g.userData.wanted = !!wanted;
