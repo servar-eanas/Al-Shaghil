@@ -25,7 +25,7 @@ app.get('/health', (_req, res) => res.json({ ok: true, game: 'الشغيل', ver
 
 const JOB_IDS = new Set(['shopkeeper','mechanic','police','it','electronics','criminal','delivery','unassigned']);
 const freshGame = () => ({
-  schemaVersion: 9, balance: 200, day: 1, gameMinutes: 480, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, capacity: 12, storageLevel: 0, easyStartGranted: true, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
+  schemaVersion: 9, balance: 200, day: 1, gameMinutes: 480, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, capacity: 12, storageLevel: 0, easyStartGranted: true, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-54,z:42,rot:0},
   fixtures: { shelves:{water:true,chips:false,milk:false}, register:false, computer:true, cart:false, fridges:false, itBench:false, electronics:false },
   upgrades: { topShelf: false, warehouse: false, checkout: false, expansion: false },
   inventory: {
@@ -41,6 +41,7 @@ function normalizeGame(data) {
   if (!data || typeof data !== 'object' || data.schemaVersion !== 9) return base;
   const merged = { ...base, ...data, cart: Array.isArray(data.cart) ? data.cart.filter(k => ['water','chips','milk'].includes(k)) : [], cartPose: { ...base.cartPose, ...(data.cartPose || {}) }, vehiclePose: { ...base.vehiclePose, ...(data.vehiclePose || {}) }, fixtures: { ...base.fixtures, ...(data.fixtures || {}), shelves: { ...base.fixtures.shelves, ...(data.fixtures?.shelves || {}) } }, upgrades: { ...base.upgrades, ...(data.upgrades || {}) }, inventory: { ...base.inventory, ...(data.inventory || {}) } };
   if (!Number.isFinite(Number(merged.gameMinutes))) merged.gameMinutes = 480;
+  if (Math.abs(Number(merged.vehiclePose?.x)+8)<.01 && Math.abs(Number(merged.vehiclePose?.z)-18.6)<.01) { merged.vehiclePose.x=-54; merged.vehiclePose.z=42; }
   if (typeof merged.storeOpen !== 'boolean') merged.storeOpen = merged.gameMinutes >= 480 && merged.gameMinutes < 1320;
   if (merged.storeManualOverride !== null && typeof merged.storeManualOverride !== 'boolean') merged.storeManualOverride = null;
   if (!merged.capacity) merged.capacity = merged.upgrades.topShelf ? 18 : 12;
@@ -427,7 +428,7 @@ io.on('connection', socket => {
     if (!JOB_IDS.has(job) || job === 'unassigned' || actor.job !== job) return ack({ok:false,error:'هذه المهمة ليست ضمن وظيفتك الحالية.'});
     const now = Date.now(), last = room.lastGameTaskByPlayer.get(socket.id) || 0;
     if (now-last < 8000) return ack({ok:false,error:'استرح قليلاً قبل تنفيذ المهمة التالية.'});
-    const points = {shopkeeper:[-2.15,-5.15],mechanic:[-34,11.25],it:[22,12.25],electronics:[34,11.55],delivery:[-42,11.25],criminal:[13,23.3]};
+    const points = {shopkeeper:[-2.15,-5.15],mechanic:[-57,11.2],it:[55,11.2],electronics:[73,11.2],delivery:[-42,35.2],criminal:[13,23.3]};
     let valid = false, message = '', reward = 0;
     if (job === 'police') {
       const nearNpc = Math.hypot(actor.x-6, actor.z-22) < 5.8;
@@ -457,7 +458,7 @@ io.on('connection', socket => {
     if (!room || !player) return ack({ok:false,error:'لا توجد غرفة نشطة.'});
     if (player.job !== 'police') return ack({ok:false,error:'سيارة الدورية متاحة للاعب الذي عُيّن في وظيفة الشرطة.'});
     if (room.vehicleHolderId && room.vehicleHolderId !== socket.id) return ack({ok:false,error:'سيارة الدورية يقودها لاعب آخر حالياً.'});
-    const pose = room.data.vehiclePose || {x:-8,z:18.6,rot:0};
+    const pose = room.data.vehiclePose || {x:-54,z:42,rot:0};
     if (Math.hypot(player.x-pose.x, player.z-pose.z) > 4.5) return ack({ok:false,error:'اقترب من سيارة الدورية أولاً.'});
     room.vehicleHolderId = socket.id; player.driving = true; player.x=pose.x; player.z=pose.z; player.rot=(Number(pose.rot)||0)-Math.PI/2;
     const data = {holderId:socket.id,pose:{...pose}};
