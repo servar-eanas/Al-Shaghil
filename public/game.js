@@ -582,7 +582,19 @@ function buildNpc(x,z,shirt,phase) {
   const hair = new THREE.Mesh(new THREE.SphereGeometry(.178,12,8,0,Math.PI*2,0,Math.PI*.48),mat(`npc hair ${phase}`,'#39332c',.98));
   hair.position.set(0,.19,-.015); hair.castShadow=true; head.add(hair);
   // Face details are placed in world-root coordinates by the original helper, so preserve their existing scale and orientation.
-  addFacialDetails(g, skin, `npc-${phase}`);
+  const whites = mat(`npc eye white ${phase}`, '#f5eee3', .55);
+  const iris = mat(`npc iris ${phase}`, '#4b3529', .45);
+  const pupil = mat(`npc pupil ${phase}`, '#161a18', .34);
+  const brow = mat(`npc brow ${phase}`, '#3c3028', .92);
+  for(const side of [-1,1]) {
+    const ear=new THREE.Mesh(new THREE.SphereGeometry(.045,10,8),skin);ear.position.set(side*.178,.09,-.006);head.add(ear);
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(.032,12,10),whites);eye.scale.set(1.08,.86,.55);eye.position.set(side*.066,.137,-.158);head.add(eye);
+    const irisMesh=new THREE.Mesh(new THREE.SphereGeometry(.016,10,8),iris);irisMesh.position.set(side*.066,.135,-.176);head.add(irisMesh);
+    const pupilMesh=new THREE.Mesh(new THREE.SphereGeometry(.0085,8,6),pupil);pupilMesh.position.set(side*.066,.135,-.185);head.add(pupilMesh);
+    const eyebrow=box(head,'npc eyebrow',side*.067,.184,-.157,.065,.013,.025,brow);eyebrow.rotation.z=side*-.10;
+  }
+  const nose=new THREE.Mesh(new THREE.SphereGeometry(.028,10,8),skin);nose.scale.set(.78,1.05,.78);nose.position.set(0,.095,-.19);head.add(nose);
+  const mouth=box(head,'npc mouth',0,.045,-.171,.06,.012,.014,mat(`npc mouth ${phase}`,'#895a4b',.85));
   const makeSegment = (parent, name, radius, cylinderLength, material) => {
     const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius,cylinderLength,4,8),material);
     mesh.position.y=-(cylinderLength/2+radius); mesh.castShadow=true; mesh.name=name; parent.add(mesh); return mesh;
@@ -2164,7 +2176,8 @@ function findNpcPath(startX,startZ,targetX,targetZ,zone) {
   const s=toCell(startX,startZ), goal=toCell(targetX,targetZ);
   let startId=idOf(s.x,s.z), goalId=idOf(goal.x,goal.z);
   const isCellWalkable=(cx,cz,id)=>id===startId || npcCanWalk(zone.minX+cx*step,zone.minZ+cz*step,zone);
-  if (!npcCanWalk(...Object.values(pointOf(goalId)),zone)) return [];
+  const goalPoint=pointOf(goalId);
+  if (!npcCanWalk(goalPoint.x,goalPoint.z,zone)) return [];
   // If a newly bought fixture has appeared under an NPC, choose a nearby safe start cell so it can walk clear.
   if (!npcCanWalk(startX,startZ,zone)) {
     let best=null, bestDistance=Infinity;
