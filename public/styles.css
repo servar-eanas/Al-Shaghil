@@ -156,3 +156,14 @@
 .shortcutGrid span{font-size:10px;line-height:1.65;color:#c5d5cc}
 .shortcutDone{margin-top:6px}
 @media(max-width:660px){.shortcutModal{padding:20px 14px}.shortcutGrid{grid-template-columns:1fr}.shortcutGrid>div{padding:8px}.shortcutGrid span{font-size:10px}}
+
+
+/* Open-city controls: hide/reopen the shop sidebar without closing the world. */
+.panelHeadActions{display:flex;align-items:center;gap:7px;flex-shrink:0}
+.panelCloseButton{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;padding:0;font-size:19px;line-height:1}
+#sidebarToggle.active{background:rgba(121,198,165,.14);border-color:rgba(121,198,165,.44)}
+#sidebarToggle[aria-expanded="false"]{background:rgba(121,198,165,.09)}
+@media(max-width:660px){
+  .panelHeadActions{gap:5px}
+  .panelCloseButton{width:28px;height:28px;flex-basis:28px}
+}
