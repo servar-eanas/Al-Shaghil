@@ -573,19 +573,41 @@ function buildNpc(x,z,shirt,phase) {
   const shirtMat = mat(`npc shirt ${shirt}`,shirt,.88);
   const skin = mat(`npc skin ${phase}`,'#cda17f',.9);
   const pants = mat(`npc pants ${phase}`,'#34413e',.94);
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.235,.54,4,10),shirtMat); body.position.y=1.02; body.castShadow=true; g.add(body);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.175,14,12),skin); head.position.y=1.55; head.castShadow=true; g.add(head);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(.178,12,8,0,Math.PI*2,0,Math.PI*.48),mat(`npc hair ${phase}`,'#39332c',.98)); hair.position.set(0,1.61,-.015); hair.castShadow=true; g.add(hair);
+  const shoeMat = mat(`npc shoe ${phase}`,'#282c2b',.95);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(.235,.54,4,10),shirtMat);
+  body.position.y=1.02; body.castShadow=true; g.add(body);
+  const head = new THREE.Group(); head.position.set(0,1.42,0); g.add(head);
+  const headShape = new THREE.Mesh(new THREE.SphereGeometry(.175,14,12),skin);
+  headShape.position.y=.13; headShape.castShadow=true; head.add(headShape);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(.178,12,8,0,Math.PI*2,0,Math.PI*.48),mat(`npc hair ${phase}`,'#39332c',.98));
+  hair.position.set(0,.19,-.015); hair.castShadow=true; head.add(hair);
+  // Face details are placed in world-root coordinates by the original helper, so preserve their existing scale and orientation.
   addFacialDetails(g, skin, `npc-${phase}`);
-  const limb = (name, x1,y1,z1,x2,y2,z2,r,material) => { const a=new THREE.Vector3(x1,y1,z1), b=new THREE.Vector3(x2,y2,z2), d=b.clone().sub(a); const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,Math.max(.06,d.length()-r*2),4,8),material); mesh.position.copy(a.add(b).multiplyScalar(.5)); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); mesh.castShadow=true; mesh.name=name; g.add(mesh); return mesh; };
-  const npcArms = [], npcLegs = [];
+  const makeSegment = (parent, name, radius, cylinderLength, material) => {
+    const mesh = new THREE.Mesh(new THREE.CapsuleGeometry(radius,cylinderLength,4,8),material);
+    mesh.position.y=-(cylinderLength/2+radius); mesh.castShadow=true; mesh.name=name; parent.add(mesh); return mesh;
+  };
+  const npcArms=[], npcLegs=[];
   for (const side of [-1,1]) {
-    npcArms.push(limb('npc arm',side*.21,1.2,0,side*.31,.73,-.025,.075,shirtMat));
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(.065,10,8),skin); hand.position.set(side*.31,.69,-.025); hand.castShadow=true; g.add(hand);
-    npcLegs.push(limb('npc leg',side*.105,.62,0,side*.12,.19,.01,.09,pants));
-    const shoe=box(g,'npc shoe',side*.12,.1,-.04,.15,.18,.28,mat(`npc shoe ${phase}`,'#282c2b',.95));
+    const shoulder=new THREE.Group(); shoulder.position.set(side*.22,1.23,0); g.add(shoulder);
+    makeSegment(shoulder,'npc upper arm',.07,.15,shirtMat);
+    const elbow=new THREE.Group(); elbow.position.y=-.29; shoulder.add(elbow);
+    makeSegment(elbow,'npc forearm',.06,.14,shirtMat);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(.06,10,8),skin); hand.position.set(0,-.255,-.012); hand.castShadow=true; elbow.add(hand);
+    npcArms.push({shoulder,elbow,side});
+    const hip=new THREE.Group(); hip.position.set(side*.105,.62,0); g.add(hip);
+    makeSegment(hip,'npc thigh',.085,.12,pants);
+    const knee=new THREE.Group(); knee.position.y=-.29; hip.add(knee);
+    makeSegment(knee,'npc shin',.073,.12,pants);
+    const shoe=box(knee,'npc shoe',0,-.255,-.045,.15,.12,.27,shoeMat); shoe.castShadow=true;
+    npcLegs.push({hip,knee,side});
   }
-  g.position.set(x,0,z); g.userData={phase,originX:x,originZ:z,targetX:x,targetZ:z,wait:0,walkPhase:phase,npcArms,npcLegs}; npcGroups.push(g); return g;
+  g.position.set(x,0,z);
+  const zone = z > 15
+    ? { minX:1.5,maxX:10.25,minZ:18.2,maxZ:26.0,step:.72 }
+    : { minX:-6.9,maxX:6.9,minZ:-7.2,maxZ:13.0,step:.72 };
+  g.userData={phase,originX:x,originZ:z,targetX:x,targetZ:z,wait:.45+Math.random()*1.1,walkPhase:phase,npcArms,npcLegs,body,head,zone,path:[],pathIndex:0,behavior:z>15?'suspect':'shopper'};
+  npcGroups.push(g); return g;
 }
 buildNpc(-4, 1.4, '#8eaf9d', 0.5); buildNpc(5, -3.1, '#d4a06f', 2.3);
 const robberNpc = buildNpc(6, 22, '#30343a', 9.3);
@@ -2126,40 +2148,149 @@ function updateMovement(dt) {
   }
 }
 
-function updateAmbient(dt, time) {
-  if (!active || paused || (currentMode !== 'multi' && currentMode !== 'solo')) return;
-  npcGroups.forEach((g, i) => {
-    if (!g.visible) return;
-    const data = g.userData;
-    data.wait = Math.max(0, (data.wait || 0) - dt);
-    const dx = (data.targetX ?? data.originX) - g.position.x;
-    const dz = (data.targetZ ?? data.originZ) - g.position.z;
-    const distance = Math.hypot(dx, dz);
-    let walking = false;
-    if (distance < .28) {
-      if (data.wait <= 0) {
-        const radiusX = data.isRobber ? 4.2 : 1.7;
-        const radiusZ = data.isRobber ? 2.8 : 1.25;
-        data.targetX = data.originX + (Math.random() * 2 - 1) * radiusX;
-        data.targetZ = data.originZ + (Math.random() * 2 - 1) * radiusZ;
-        data.wait = .25 + Math.random() * 1.15;
+function npcCanWalk(x,z,zone) {
+  if (x < zone.minX || x > zone.maxX || z < zone.minZ || z > zone.maxZ) return false;
+  return !isBlockedPosition(x,z);
+}
+function findNpcPath(startX,startZ,targetX,targetZ,zone) {
+  const step=zone.step||.72;
+  const cols=Math.floor((zone.maxX-zone.minX)/step)+1;
+  const rows=Math.floor((zone.maxZ-zone.minZ)/step)+1;
+  const total=cols*rows;
+  const clampCell=(v,max)=>Math.max(0,Math.min(max,Math.round(v)));
+  const toCell=(x,z)=>({x:clampCell((x-zone.minX)/step,cols-1),z:clampCell((z-zone.minZ)/step,rows-1)});
+  const idOf=(x,z)=>z*cols+x;
+  const pointOf=id=>({x:zone.minX+(id%cols)*step,z:zone.minZ+Math.floor(id/cols)*step});
+  const s=toCell(startX,startZ), goal=toCell(targetX,targetZ);
+  let startId=idOf(s.x,s.z), goalId=idOf(goal.x,goal.z);
+  const isCellWalkable=(cx,cz,id)=>id===startId || npcCanWalk(zone.minX+cx*step,zone.minZ+cz*step,zone);
+  if (!npcCanWalk(...Object.values(pointOf(goalId)),zone)) return [];
+  // If a newly bought fixture has appeared under an NPC, choose a nearby safe start cell so it can walk clear.
+  if (!npcCanWalk(startX,startZ,zone)) {
+    let best=null, bestDistance=Infinity;
+    for(let radius=1;radius<=3&&!best;radius++) {
+      for(let dz=-radius;dz<=radius;dz++) for(let dx=-radius;dx<=radius;dx++) {
+        const cx=s.x+dx,cz=s.z+dz;
+        if(cx<0||cx>=cols||cz<0||cz>=rows)continue;
+        const p={x:zone.minX+cx*step,z:zone.minZ+cz*step};
+        const d=Math.hypot(p.x-startX,p.z-startZ);
+        if(d<bestDistance&&npcCanWalk(p.x,p.z,zone)){best={cx,cz,d};bestDistance=d;}
       }
-    } else if (data.wait <= 0) {
-      const desiredYaw = Math.atan2(-dx, -dz);
-      let turn = desiredYaw - g.rotation.y;
-      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
-      g.rotation.y += turn * Math.min(1, dt * 4.5);
-      const speed = data.isRobber ? 1.05 : .72 + (i % 2) * .16;
-      const step = Math.min(distance, speed * dt);
-      g.position.x += dx / distance * step;
-      g.position.z += dz / distance * step;
-      data.walkPhase = (data.walkPhase || data.phase) + dt * (data.isRobber ? 8 : 6.2);
-      walking = true;
     }
-    const swing = walking ? Math.sin(data.walkPhase) * .24 : 0;
-    for (let n = 0; n < (data.npcLegs || []).length; n++) data.npcLegs[n].rotation.z = n === 0 ? swing : -swing;
-    for (let n = 0; n < (data.npcArms || []).length; n++) data.npcArms[n].rotation.z = n === 0 ? -swing * .65 : swing * .65;
-    if (g.children[0]) g.children[0].position.y = 1.02 + Math.abs(Math.sin(data.walkPhase || time)) * (walking ? .025 : .008);
+    if(best) startId=idOf(best.cx,best.cz);
+  }
+  if (startId===goalId) return [pointOf(goalId)];
+  const heuristic=(a,b)=>{const ax=a%cols,az=Math.floor(a/cols),bx=b%cols,bz=Math.floor(b/cols);const dx=Math.abs(ax-bx),dz=Math.abs(az-bz);return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz);};
+  const open=[{id:startId,f:heuristic(startId,goalId)}], openSet=new Set([startId]);
+  const cameFrom=new Int32Array(total); cameFrom.fill(-1);
+  const gScore=new Float64Array(total); gScore.fill(Infinity); gScore[startId]=0;
+  const closed=new Uint8Array(total);
+  const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]];
+  let found=false, iterations=0;
+  while(open.length&&iterations++<1200) {
+    open.sort((a,b)=>a.f-b.f);
+    const current=open.shift(); if(!current)break;
+    openSet.delete(current.id);
+    if(current.id===goalId){found=true;break;}
+    if(closed[current.id])continue; closed[current.id]=1;
+    const cx=current.id%cols,cz=Math.floor(current.id/cols);
+    for(const [dx,dz] of dirs) {
+      const nx=cx+dx,nz=cz+dz;
+      if(nx<0||nx>=cols||nz<0||nz>=rows)continue;
+      const nid=idOf(nx,nz);
+      if(closed[nid]||!isCellWalkable(nx,nz,nid))continue;
+      if(dx&&dz&&(!npcCanWalk(zone.minX+(cx+dx)*step,zone.minZ+cz*step,zone)||!npcCanWalk(zone.minX+cx*step,zone.minZ+(cz+dz)*step,zone)))continue;
+      const tentative=gScore[current.id]+(dx&&dz?Math.SQRT2:1);
+      if(tentative>=gScore[nid])continue;
+      cameFrom[nid]=current.id;gScore[nid]=tentative;
+      const f=tentative+heuristic(nid,goalId);
+      if(openSet.has(nid)){const item=open.find(n=>n.id===nid);if(item)item.f=f;}
+      else {open.push({id:nid,f});openSet.add(nid);}
+    }
+  }
+  if(!found)return [];
+  const raw=[];let cursor=goalId;
+  while(cursor!==-1){raw.push(pointOf(cursor));if(cursor===startId)break;cursor=cameFrom[cursor];}
+  raw.reverse();
+  if(!raw.length)return [];
+  // Smooth the grid path by skipping intermediate nodes whenever the direct route is collision-free.
+  const lineClear=(a,b)=>{
+    const distance=Math.hypot(b.x-a.x,b.z-a.z), checks=Math.max(1,Math.ceil(distance/.28));
+    for(let i=1;i<=checks;i++){const t=i/checks,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;if(!npcCanWalk(x,z,zone))return false;}
+    return true;
+  };
+  const smooth=[];let anchor={x:startX,z:startZ},idx=0;
+  while(idx<raw.length) {
+    let far=idx;
+    for(let j=raw.length-1;j>=idx;j--)if(lineClear(anchor,raw[j])){far=j;break;}
+    if(far===idx&&!lineClear(anchor,raw[idx])){smooth.push(raw[idx]);anchor=raw[idx];idx++;continue;}
+    smooth.push(raw[far]);anchor=raw[far];idx=far+1;
+  }
+  return smooth;
+}
+function chooseNpcDestination(g) {
+  const data=g.userData,zone=data.zone;
+  for(let tries=0;tries<18;tries++) {
+    // Customers move between aisles and the storefront; the suspect patrols the nearby street.
+    const targetX=zone.minX+.7+Math.random()*Math.max(.1,zone.maxX-zone.minX-1.4);
+    const targetZ=zone.minZ+.7+Math.random()*Math.max(.1,zone.maxZ-zone.minZ-1.4);
+    if(Math.hypot(targetX-g.position.x,targetZ-g.position.z)<1.45)continue;
+    const path=findNpcPath(g.position.x,g.position.z,targetX,targetZ,zone);
+    if(path.length) {
+      data.targetX=targetX;data.targetZ=targetZ;data.path=path;data.pathIndex=0;data.wait=0;
+      return true;
+    }
+  }
+  data.path=[];data.wait=.7;return false;
+}
+function updateAmbient(dt,time) {
+  if(!active||paused||(currentMode!=='multi'&&currentMode!=='solo'))return;
+  npcGroups.forEach((g,i)=>{
+    if(!g.visible)return;
+    const data=g.userData,zone=data.zone;
+    data.wait=Math.max(0,(data.wait||0)-dt);
+    let walking=false;
+    if((!data.path||data.pathIndex>=data.path.length)&&data.wait<=0) {
+      data.wait=.6+Math.random()*1.9;
+      chooseNpcDestination(g);
+    }
+    const point=data.path?.[data.pathIndex];
+    if(point) {
+      const dx=point.x-g.position.x,dz=point.z-g.position.z,distance=Math.hypot(dx,dz);
+      if(distance<.2) {
+        data.pathIndex++;
+        if(data.pathIndex>=data.path.length){data.path=[];data.wait=1.0+Math.random()*2.2;}
+      } else {
+        const desiredYaw=Math.atan2(-dx,-dz);
+        let turn=desiredYaw-g.rotation.y;turn=Math.atan2(Math.sin(turn),Math.cos(turn));
+        g.rotation.y+=turn*Math.min(1,dt*3.8);
+        const speed=data.behavior==='suspect'?(data.fleeUntil>time?2.35:1.2):.78+(i%2)*.15;
+        const step=Math.min(distance,speed*dt);
+        const nx=g.position.x+dx/distance*step,nz=g.position.z+dz/distance*step;
+        const crowding=npcGroups.some(other=>other!==g&&other.visible&&Math.hypot(other.position.x-nx,other.position.z-nz)<.52);
+        if(!crowding&&npcCanWalk(nx,nz,zone)) {
+          g.position.x=nx;g.position.z=nz;walking=true;
+        } else if(!npcCanWalk(nx,nz,zone)||crowding) {
+          data.path=[];data.pathIndex=0;data.wait=.25+Math.random()*.4;
+        }
+      }
+    }
+    const gait=data.walkPhase||data.phase;
+    if(walking)data.walkPhase=gait+dt*(data.behavior==='suspect'&&data.fleeUntil>time?11:7.3);
+    const phase=data.walkPhase||data.phase;
+    const swing=walking?Math.sin(phase)*(data.behavior==='suspect'&&data.fleeUntil>time?.48:.34):0;
+    for(const limb of data.npcLegs||[]) {
+      const legPhase=phase+(limb.side<0?Math.PI:0);
+      limb.hip.rotation.x=walking?Math.sin(legPhase)*.34:limb.hip.rotation.x+(0-limb.hip.rotation.x)*Math.min(1,dt*5);
+      limb.knee.rotation.x=walking?Math.max(0,Math.sin(legPhase+Math.PI*.2))*.55:limb.knee.rotation.x+(0-limb.knee.rotation.x)*Math.min(1,dt*5);
+    }
+    for(const limb of data.npcArms||[]) {
+      const armPhase=phase+(limb.side>0?Math.PI:0);
+      limb.shoulder.rotation.x=walking?-Math.sin(armPhase)*.25:limb.shoulder.rotation.x+(0-limb.shoulder.rotation.x)*Math.min(1,dt*5);
+      limb.elbow.rotation.x=walking?-.12-Math.max(0,Math.sin(armPhase))*.22:limb.elbow.rotation.x+(0-limb.elbow.rotation.x)*Math.min(1,dt*5);
+    }
+    if(data.body){data.body.rotation.x=walking?-.025:0;data.body.position.y=1.02+Math.abs(Math.sin(phase))*(walking?.018:.004);}
+    if(data.head)data.head.rotation.y=walking?0:Math.sin(time*.65+data.phase)*.07;
   });
 }
 let lastFrame=performance.now();
