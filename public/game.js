@@ -236,6 +236,8 @@ box(world, 'glass right', 1.55, 1.4, 6.25, 0.08, 2.55, 0.08, mat('glassframe2', 
 box(world, 'shop sign board', 0, 3.62, 6.25, 5.8, 0.85, 0.24, mat('signboard', '#234d41', 0.62));
 const shopSign = labelSprite('الشغيل', { bg: '#234d41', fontSize: 60, width: 700, height: 130 });
 shopSign.position.set(0, 3.62, 6.105); shopSign.scale.set(4.8, 0.9, 1); world.add(shopSign);
+const ownShopSign = labelSprite('دكانك الخاص · إدارة وبيع البضاعة', { bg:'#245442ee', color:'#e6ffbb', fontSize:30, width:650, height:88 });
+ownShopSign.position.set(0,2.52,7.95);ownShopSign.scale.set(3.2,.44,1);ownShopSign.userData.billboard=true;world.add(ownShopSign);
 // Interior ceiling trim and lights; no full ceiling so camera can see the scene.
 box(world, 'back top trim', 0, 3.68, -8.35, 16.6, 0.16, 0.48, mat('trim', '#eee7d9'));
 for (const lx of [-5.5, 0, 5.5]) {
@@ -530,7 +532,11 @@ function buildHouse(x, z, width, depth, wallColor, roofColor, type = 'home') {
     box(group, `${type} window horizontal bar`, x + side*width*0.22, 2.18, frontZ + 0.07, 1.05, 0.06, 0.03, mat(`window barh ${x}`, '#efe5ce'));
   }
   if (type === 'shop') {
-    box(group, 'storefront awning', x, 2.65, frontZ + .55, width*.8, .18, 1.1, mat(`awning ${x}`, '#4e8671'));
+    const names = x === -27 ? ['بقالة الحارة','#326f58'] : x === 27 ? ['ماركت الرمال','#3e7085'] : x < 0 ? ['سوق الغرب','#8a6034'] : ['سوق الشرق','#6e588d'];
+    box(group, 'storefront awning', x, 2.65, frontZ + .55, width*.8, .18, 1.1, mat(`awning ${x}`, names[1]));
+    box(group, 'street shop sign board', x, 3.23, frontZ + .075, width*.78, .68, .14, mat(`street shop sign ${x}`, names[1]));
+    const shopNameSign = labelSprite(names[0], { bg:names[1], color:'#fff8e8', fontSize:39, width:480, height:100 });
+    shopNameSign.position.set(x,3.24,frontZ-.015);shopNameSign.scale.set(Math.min(2.7,width*.29),.52,1);shopNameSign.userData.billboard=true;group.add(shopNameSign);
   }
   return group;
 }
@@ -748,12 +754,16 @@ function makeAvatar(name, color = '#477b63', job = 'unassigned', wanted = false)
   const hair = new THREE.Mesh(new THREE.SphereGeometry(.195,12,8,0,Math.PI*2,0,Math.PI*.52),mat('avatar hair','#39332c',.98)); hair.position.set(0,1.6,-.012); hair.castShadow=true; g.add(hair);
   addFacialDetails(g, skinMat, 'avatar');
   const limb = (nm, a, b, radius, material) => { const va=new THREE.Vector3(...a), vb=new THREE.Vector3(...b), d=vb.clone().sub(va); const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(radius,Math.max(.04,d.length()-radius*2),4,8),material); mesh.name=nm; mesh.position.copy(va.add(vb).multiplyScalar(.5)); mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); mesh.castShadow=true; g.add(mesh); return mesh; };
+  const armJoints=[], legJoints=[];
   for (const side of [-1,1]) {
-    limb('avatar arm',[side*.22,1.15,0],[side*.31,.68,-.025],.075,bodyMat);
-    const hand=new THREE.Mesh(new THREE.SphereGeometry(.064,10,8),skinMat); hand.position.set(side*.31,.65,-.025); hand.castShadow=true; g.add(hand);
-    limb('avatar leg',[side*.11,.62,0],[side*.12,.17,.02],.09,pantsMat);
-    box(g,'avatar shoe',side*.12,.1,-.045,.17,.18,.28,shoeMat);
+    const armPivot=new THREE.Group();armPivot.name=`avatar arm joint ${side}`;armPivot.position.set(side*.22,1.15,0);g.add(armPivot);
+    const armMesh=new THREE.Mesh(new THREE.CapsuleGeometry(.075,.37,4,8),bodyMat);armMesh.position.set(side*.09,-.235,-.025);armMesh.castShadow=true;armPivot.add(armMesh);
+    const hand=new THREE.Mesh(new THREE.SphereGeometry(.064,10,8),skinMat);hand.position.set(side*.09,-.49,-.025);hand.castShadow=true;armPivot.add(hand);armJoints.push({side,pivot:armPivot});
+    const legPivot=new THREE.Group();legPivot.name=`avatar leg joint ${side}`;legPivot.position.set(side*.11,.62,0);g.add(legPivot);
+    const legMesh=new THREE.Mesh(new THREE.CapsuleGeometry(.09,.295,4,8),pantsMat);legMesh.position.set(side*.01,-.235,.02);legMesh.castShadow=true;legPivot.add(legMesh);
+    box(legPivot,'avatar shoe',side*.01,-.49,-.045,.17,.18,.28,shoeMat);legJoints.push({side,pivot:legPivot});
   }
+  g.userData.motion={body,arms:armJoints,legs:legJoints,phase:Math.random()*Math.PI*2};
   if (job === 'police') {
     box(g,'police cap',0,1.77,-.02,.35,.12,.34,mat('police cap','#182a48',.8));
     box(g,'police badge',.10,1.07,-.238,.085,.13,.026,mat('police badge','#d7c079',.35,{metalness:.35}));
@@ -1325,7 +1335,7 @@ function updateJobGuide(state = gameState, force = false) {
 function setSoloJob(job) {
   if (!JOBS[job] || job === 'unassigned') return;
   if (currentMode === 'multi') return toast('في اللعب الجماعي، منشئ الغرفة هو الذي يوزّع الوظائف.');
-  currentJob = job;
+  currentJob = job; jobWorkSession = null;
   try { localStorage.setItem(soloJobStorageKey, job); } catch {}
   $('jobValue').textContent = `${JOBS[job].icon} ${JOBS[job].label}`;
   refreshSelfAvatar(); renderJobAssignments(); updateJobGuide(gameState, true);
@@ -2294,11 +2304,20 @@ canvas.addEventListener('pointermove', e => {
 function endLook(e){if(e.pointerId===lookPointer){lookPointer=null;lastLookPoint=null;}}
 canvas.addEventListener('pointerup',endLook); canvas.addEventListener('pointercancel',endLook);
 
+function animateLocalAvatar(dt, moving) {
+  if(!selfAvatar?.userData?.motion)return;
+  const motion=selfAvatar.userData.motion,work=performance.now()<avatarActionUntil;
+  if(moving)avatarWalkPhase+=dt*(keys.ShiftLeft||keys.ShiftRight?11.5:8.2);
+  const phase=avatarWalkPhase+(motion.phase||0);
+  for(const limb of motion.legs||[]) {const target=work?0:Math.sin(phase+(limb.side<0?Math.PI:0))*.58*(moving?1:0);limb.pivot.rotation.x+=(target-limb.pivot.rotation.x)*Math.min(1,dt*12);}
+  for(const limb of motion.arms||[]) {const target=work?(-.65+(limb.side<0?.18:0)):Math.sin(phase+(limb.side>0?Math.PI:0))*.38*(moving?1:0);limb.pivot.rotation.x+=(target-limb.pivot.rotation.x)*Math.min(1,dt*10);limb.pivot.rotation.z+=(0-limb.pivot.rotation.z)*Math.min(1,dt*8);}
+  if(motion.body){const bob=moving?Math.abs(Math.sin(phase*2))*.045:0;motion.body.position.y+=(.98+bob-motion.body.position.y)*Math.min(1,dt*10);const tilt=work?0.045:moving?0.025:0;motion.body.rotation.x+=(tilt-motion.body.rotation.x)*Math.min(1,dt*8);}
+}
 function updateMovement(dt) {
-  if (!active || paused) return;
+  if (!active || paused) { animateLocalAvatar(dt,false); return; }
   const forward = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - touchMove.y;
   const right = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touchMove.x;
-  const len=Math.hypot(forward,right); if (len<0.03) { updateCameraPose(); return; }
+  const len=Math.hypot(forward,right); if (len<0.03) { animateLocalAvatar(dt,false); updateCameraPose(); return; }
   const f=forward/Math.max(1,len), r=right/Math.max(1,len);
   const speed = isDriving ? ((keys.ShiftLeft||keys.ShiftRight) ? 13.5 : 8.4) : ((keys.ShiftLeft||keys.ShiftRight)?6.3:4.2);
   const dx=(-Math.sin(yaw)*f + Math.cos(yaw)*r)*speed*dt;
@@ -2307,14 +2326,14 @@ function updateMovement(dt) {
   const substeps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) / 0.075));
   const stepX = dx / substeps, stepZ = dz / substeps;
   for (let i = 0; i < substeps; i++) {
-    const nx = THREE.MathUtils.clamp(playerPosition.x + stepX, -57, 57);
-    const nz = THREE.MathUtils.clamp(playerPosition.z + stepZ, -51, 56);
+    const nx = THREE.MathUtils.clamp(playerPosition.x + stepX, -96, 96);
+    const nz = THREE.MathUtils.clamp(playerPosition.z + stepZ, -86, 90);
     const isBlocked = (x,z) => isDriving ? isVehicleBlockedPosition(x,z) : isBlockedPosition(x,z);
     if (!isBlocked(nx, playerPosition.z)) playerPosition.x = nx;
     if (!isBlocked(playerPosition.x, nz)) playerPosition.z = nz;
   }
   const moved = Math.hypot(playerPosition.x-ox, playerPosition.z-oz);
-  const moving=Math.min(1,moved / Math.max(0.001,speed*dt)); elapsed += dt*9*moving;
+  const moving=Math.min(1,moved / Math.max(0.001,speed*dt)); animateLocalAvatar(dt,moved>.002&&!isDriving); elapsed += dt*9*moving;
   if (firstPersonHands) { firstPersonHands.position.y = Math.sin(elapsed) * .014 * moving; firstPersonHands.rotation.z = Math.sin(elapsed*.5)*.012*moving; }
   if (isDriving) {
     patrolCar.position.set(playerPosition.x,0,playerPosition.z); patrolCar.rotation.y=yaw+Math.PI/2;
