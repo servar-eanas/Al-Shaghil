@@ -751,6 +751,9 @@ buildWorkmate(53.5,12.8,'#4b8192',4.1,'it','فني حاسوب · يعمل');
 buildWorkmate(71.6,12.8,'#7559a7',5.8,'electronics','فني إلكترونيات · يعمل');
 buildWorkmate(-43.8,36.7,'#9d9852',7.2,'delivery','مندوب · يجهّز الطلبات');
 buildWorkmate(-20.8,22.1,'#d4a06f',8.5,'delivery','نقطة استلام الطلبات');
+buildWorkmate(-64.6,37.2,'#314e8b',9.5,'police','شرطي مناوب');
+buildWorkmate(-27,8.8,'#326f58',10.7,'shopkeeper','بائع بقالة الحارة');
+buildWorkmate(27,8.8,'#3e7085',12.1,'shopkeeper','بائع ماركت الرمال');
 
 function makeAvatar(name, color = '#477b63', job = 'unassigned', wanted = false) {
   const g = new THREE.Group(); g.userData.job = job; g.userData.name = name; g.userData.wanted = !!wanted;
