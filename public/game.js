@@ -874,7 +874,7 @@ function toast(message, ms = 2700) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
 function setHudVisible(show) {
-  ['hudTop','storePanel','chatPanel','cartPanel','hudBottom','crosshair'].forEach(id => $(id).classList.toggle('hidden', !show));
+  ['hudTop','storePanel','chatPanel','cartPanel','hudBottom','crosshair','jobGuidePanel'].forEach(id => $(id).classList.toggle('hidden', !show));
   $('interactionPrompt').classList.add('hidden');
   const sidebarButton = $('sidebarToggle'); if (sidebarButton) sidebarButton.setAttribute('aria-expanded', String(show));
   if ('ontouchstart' in window || navigator.maxTouchPoints > 0) $('touchControls').classList.toggle('hidden', !show);
