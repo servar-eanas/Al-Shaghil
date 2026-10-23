@@ -1328,6 +1328,8 @@ function updateJobGuide(state = gameState, force = false) {
   }
   const flow=JOB_WORKFLOWS[currentJob];
   if(flow){
+    if(!jobWorkSession&&currentJob==='police'&&!robberNpc?.visible){text.textContent='تم إيقاف المشتبه به وتسجيل البلاغ. انتظر عودته إلى الشارع ليظهر الهدف التالي.';return;}
+    if(!jobWorkSession&&currentJob==='criminal'&&!stolenGoodsCrate.visible){text.textContent='أُخذت الشحنة بالفعل. انتظر وصول شحنة جديدة إلى نقطة البداية.';return;}
     const stepIndex=jobWorkSession?.job===currentJob?jobWorkSession.step:0;const step=flow[stepIndex];
     if(step){const target=targets.find(t=>t.type==='jobTask'&&t.job===currentJob&&t.stepIndex===stepIndex);const tx=currentJob==='police'&&stepIndex===0&&robberNpc?.visible?robberNpc.position.x:(target?.x??step.x);const tz=currentJob==='police'&&stepIndex===0&&robberNpc?.visible?robberNpc.position.z:(target?.z??step.z);const distance=Math.round(distanceXZ(playerPosition.x,playerPosition.z,tx,tz));text.textContent=`مهمتك ${stepIndex+1} من ${flow.length}: ${step.title}. اتبع العلامة الخضراء؛ المسافة ${distance} م، ثم اضغط E. بعد إنهاء الخطوات تستلم أجرك.`;}
     else text.textContent='اكتملت دورة العمل. تحرّك إلى مقر وظيفتك لبدء دورة جديدة.';
