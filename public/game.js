@@ -42,6 +42,17 @@ const canvas = $('gameCanvas');
 const moneyFmt = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-US');
 const itemKeys = ['water', 'chips', 'milk'];
 const JOBS = { shopkeeper:{label:'صاحب الدكان',icon:'🏪',color:'#477b63',uniform:'مريول أخضر'}, mechanic:{label:'ميكانيكي',icon:'🔧',color:'#d18b3f',uniform:'بدلة ورشة برتقالية'}, police:{label:'شرطي',icon:'🚓',color:'#314e8b',uniform:'زي شرطة كحلي'}, it:{label:'فني IT',icon:'💻',color:'#4b8192',uniform:'قميص تقني أزرق'}, electronics:{label:'فني إلكترونيات',icon:'📱',color:'#7559a7',uniform:'زي صيانة بنفسجي'}, criminal:{label:'مشتبه به',icon:'🕶️',color:'#323b3f',uniform:'ملابس داكنة'}, delivery:{label:'مندوب توصيل',icon:'🚚',color:'#9d9852',uniform:'سترة توصيل زيتونية'}, unassigned:{label:'بانتظار التعيين',icon:'👤',color:'#66736d',uniform:'ملابس عادية'} };
+const JOB_WORKFLOWS = {
+  mechanic:[{title:'افحص السيارة على الرافعة',x:-59.65,z:10.15},{title:'جهّز أداة الصيانة من خزانة الورشة',x:-52.35,z:8.45},{title:'اختبر السيارة بعد الإصلاح',x:-54.35,z:10.15}],
+  it:[{title:'شخّص العطل على محطة الفحص',x:51.3,z:9.2},{title:'أصلح النظام من المحطة الوسطى',x:55,z:9.2},{title:'اختبر تشغيل الحاسوب بالمحطة الأخيرة',x:58.7,z:9.2}],
+  electronics:[{title:'افحص الجهاز على الطاولة الأولى',x:69.8,z:9.25},{title:'أصلح الدارة عند محطة اللحام',x:73,z:9.25},{title:'اختبر الجهاز على الطاولة الأخيرة',x:76.2,z:9.25}],
+  delivery:[{title:'استلم الطرد من رصيف المستودع',x:-46.15,z:32.65},{title:'جهّز الطلب على طاولة الفرز',x:-42,z:35.15},{title:'سلّم الطلب عند نقطة التسليم',x:-21,z:20.5}],
+  police:[{title:'اعترض المشتبه به واضغط E لإيقافه',x:6,z:22,dynamic:true},{title:'ارجع لمركز الشرطة وسجّل البلاغ',x:-63,z:35.2}],
+  criminal:[{title:'اقترب من شحنة الأجهزة وخذها',x:13,z:23.3},{title:'انقل الشحنة إلى نقطة الهروب',x:34,z:25.2}]
+};
+let jobWorkSession = null;
+let avatarWalkPhase = 0;
+let avatarActionUntil = 0;
 const defaultGame = () => ({
   schemaVersion: 9, balance: 200, day: 1, gameMinutes: 8*60, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
   capacity: 12, storageLevel: 0, easyStartGranted: true,
@@ -739,6 +750,7 @@ buildWorkmate(-58.7,12.8,'#d18b3f',2.4,'mechanic','ميكانيكي · على ر
 buildWorkmate(53.5,12.8,'#4b8192',4.1,'it','فني حاسوب · يعمل');
 buildWorkmate(71.6,12.8,'#7559a7',5.8,'electronics','فني إلكترونيات · يعمل');
 buildWorkmate(-43.8,36.7,'#9d9852',7.2,'delivery','مندوب · يجهّز الطلبات');
+buildWorkmate(-20.8,22.1,'#d4a06f',8.5,'delivery','نقطة استلام الطلبات');
 
 function makeAvatar(name, color = '#477b63', job = 'unassigned', wanted = false) {
   const g = new THREE.Group(); g.userData.job = job; g.userData.name = name; g.userData.wanted = !!wanted;
@@ -1269,6 +1281,7 @@ function clearRemotePlayers() {
   peerConnections.clear(); voiceStates.clear();
 }
 function appendJoinResult(result) {
+  jobWorkSession=null;
   if (!result?.ok) { toast(result?.error || 'تعذّر الدخول للغرفة.'); return false; }
   roomCode = result.code;
   selfPlayerId = socket?.id || result.self?.id || null;
@@ -1295,43 +1308,29 @@ function appendJoinResult(result) {
   return true;
 }
 function updateJobGuide(state = gameState, force = false) {
-  const title = $('jobGuideTitle'), text = $('jobGuideText');
-  if (!title || !text) return;
-  const now = performance.now();
-  if (!force && now - lastJobGuideAt < 450) return;
-  lastJobGuideAt = now;
-  const job = JOBS[currentJob] || JOBS.unassigned;
-  title.textContent = `${job.icon} ${job.label} · هدفك الآن`;
-  if (currentJob === 'shopkeeper') {
-    const shelfReady = itemKeys.some(key => !!state.fixtures?.shelves?.[key]);
-    const anyGoods = itemKeys.some(key => (Number(state.inventory?.[key]?.stock) || 0) + (Number(state.inventory?.[key]?.shelf) || 0) > 0);
-    if (!state.fixtures?.computer) text.textContent = '١) افتح «شراء تجهيزات وبناء الدكان» واشترِ حاسوب الإدارة بـ$15. زر شراء البضاعة يفتح الكتالوج تلقائياً إذا كان الحاسوب غير موجود.';
-    else if (!shelfReady) text.textContent = '٢) اختر صنفاً من القائمة ثم اشترِ رفّه بـ$25. بعد ذلك اطلب بضاعة من زر «شراء بضاعة للمخزن».';
-    else if (!anyGoods) text.textContent = '٣) اختر الصنف ثم اضغط «شراء بضاعة للمخزن». خذ القطع من المخزن وضعها على الرف الذي يحمل الصنف نفسه.';
-    else if (!state.fixtures?.register) text.textContent = 'بداية سهلة: عندك مياه جاهزة بالمخزن ورف مياه وحاسوب الإدارة. اقترب من صندوق مخزون المياه واضغط E، ثم اقترب من رف المياه واضغط E لوضعها. كرّرها، ثم اشترِ الكاشير بـ$20 لبدء البيع.';
-    else text.textContent = 'التقط قطعة من الرف أو عبّئه من المخزن. عند الكاشير اضغط E للبيع أو للمحاسبة. لإنجاز المهمة، اتبع العلامة «مهمة صاحب الدكان» الخضراء بجانب الكاشير واضغط E.';
+  const title=$('jobGuideTitle'),text=$('jobGuideText');if(!title||!text)return;
+  const now=performance.now();if(!force&&now-lastJobGuideAt<450)return;lastJobGuideAt=now;
+  const job=JOBS[currentJob]||JOBS.unassigned;title.textContent=`${job.icon} ${job.label} · هدفك الآن`;
+  if(currentJob==='shopkeeper') {
+    const shelfReady=itemKeys.some(key=>!!state.fixtures?.shelves?.[key]);
+    const anyGoods=itemKeys.some(key=>(Number(state.inventory?.[key]?.stock)||0)+(Number(state.inventory?.[key]?.shelf)||0)>0);
+    if(!state.fixtures?.computer)text.textContent='افتح كتالوج التجهيزات B واشترِ حاسوب الإدارة بـ$15 قبل طلب البضاعة.';
+    else if(!shelfReady)text.textContent='افتح كتالوج التجهيزات B، اختر صنفاً ثم اشترِ رفّه بـ$25. بعدها اطلب البضاعة من لوحة المتجر.';
+    else if(!anyGoods)text.textContent='اختر صنفاً من القائمة ثم اضغط «شراء بضاعة للمخزن». خذ القطع من المخزن وضعها على الرف المطابق.';
+    else if(!state.fixtures?.register)text.textContent='هذا دكانك الخاص. خذ عبوة من صندوق «مخزون المياه» بزر E، وضعها على رف المياه بزر E. بعد تعبئة الرف، افتح كتالوج B واشترِ الكاشير بـ$20. الزبائن لن يشتروا قبل تركيب الكاشير.';
+    else if(!state.storeOpen)text.textContent='الكاشير جاهز لكن الدكان مغلق. افتحه من زر «فتح الدكان» في لوحة الإدارة ليبدأ الزبائن بالشراء.';
+    else text.textContent='دكانك جاهز للبيع: خذ البضاعة من المخزون وضعها على الرف الصحيح. الزبائن يتحركون إلى الرف ويشترون تلقائياً عند وجود بضاعة وكاشير. راقب الرصيد والمخزون؛ دخل الدكان يأتي من المبيعات الفعلية.';
     return;
   }
-  const spots = {
-    mechanic: { label: 'ورشة الميكانيك', x: -57, z: 11.2 },
-    it: { label: 'مركز تقنية المعلومات', x: 55, z: 11.2 },
-    electronics: { label: 'مركز الإلكترونيات', x: 73, z: 11.2 },
-    delivery: { label: 'مستودع التوصيل', x: -42, z: 35.2 },
-    criminal: { label: 'شحنة الإلكترونيات', x: 13, z: 23.3 }
-  };
-  if (currentJob === 'police') {
-    const x = robberNpc?.position.x ?? 6, z = robberNpc?.position.z ?? 22;
-    text.textContent = robberNpc?.visible ? `اتجه إلى المشتبه به في الشارع (المسافة التقريبية ${Math.round(distanceXZ(playerPosition.x, playerPosition.z, x, z))} م)، اقترب منه ثم اضغط E أو زر «تفاعل».` : 'تم التعامل مع المشتبه به. انتظر حتى يعود إلى الشارع ثم اقترب منه لإنجاز بلاغ جديد.';
+  const flow=JOB_WORKFLOWS[currentJob];
+  if(flow){
+    const stepIndex=jobWorkSession?.job===currentJob?jobWorkSession.step:0;const step=flow[stepIndex];
+    if(step){const target=targets.find(t=>t.type==='jobTask'&&t.job===currentJob&&t.stepIndex===stepIndex);const tx=currentJob==='police'&&stepIndex===0&&robberNpc?.visible?robberNpc.position.x:(target?.x??step.x);const tz=currentJob==='police'&&stepIndex===0&&robberNpc?.visible?robberNpc.position.z:(target?.z??step.z);const distance=Math.round(distanceXZ(playerPosition.x,playerPosition.z,tx,tz));text.textContent=`مهمتك ${stepIndex+1} من ${flow.length}: ${step.title}. اتبع العلامة الخضراء؛ المسافة ${distance} م، ثم اضغط E. بعد إنهاء الخطوات تستلم أجرك.`;}
+    else text.textContent='اكتملت دورة العمل. تحرّك إلى مقر وظيفتك لبدء دورة جديدة.';
     return;
   }
-  const spot = spots[currentJob];
-  if (spot) {
-    const distance = Math.round(distanceXZ(playerPosition.x, playerPosition.z, spot.x, spot.z));
-    const verbs = { mechanic: 'اضغط E عند علامة المهمة لإنجاز طلب صيانة وكسب أجر؛ الميكانيكي الموجود بالورشة يواصل العمل بجانبك', it: 'اضغط E عند محطة الإصلاح لإنجاز طلب دعم تقني وكسب أجر؛ الفني الموجود يواصل العمل', electronics: 'اضغط E عند طاولة الأجهزة لإنجاز طلب صيانة وكسب أجر؛ الفني الموجود يواصل العمل', delivery: 'اضغط E عند المستودع لتسليم شحنة افتراضية وكسب أجر؛ المندوب يجهّز الطلبات', criminal: 'اقترب من الشحنة واضغط E لسرقتها، وستصبح مطلوباً للشرطة' };
-    text.textContent = `الموقع: ${spot.label} · المسافة ${distance} م. ${verbs[currentJob] || 'اقترب من علامة المهمة'}؛ ثم اضغط E أو «تفاعل».`;
-  } else text.textContent = 'افتح قائمة الوظائف لاختيار مهنة، ثم اتبع علامة موقع العمل في الحارة.';
+  text.textContent='افتح قائمة الوظائف لاختيار مهنة، ثم اتبع العلامة الخضراء في العالم.';
 }
-
 function setSoloJob(job) {
   if (!JOBS[job] || job === 'unassigned') return;
   if (currentMode === 'multi') return toast('في اللعب الجماعي، منشئ الغرفة هو الذي يوزّع الوظائف.');
@@ -1464,38 +1463,52 @@ function finishVehicleExit(pose) {
   if (currentMode === 'solo') { gameState.vehiclePose={x:patrolCar.position.x,z:patrolCar.position.z,rot:patrolCar.rotation.y}; try{localStorage.setItem(soloStorageKey,JSON.stringify(gameState));}catch{} }
   toast('خرجت من سيارة الدورية.');
 }
-function performJobTask(job) {
-  if (!active || !JOBS[job]) return;
-  if (currentJob !== job) return toast(`وظيفتك الحالية ${(JOBS[currentJob] || JOBS.unassigned).label}، وهذه المهمة لمهنة ${JOBS[job].label}.`);
-  if (currentMode === 'multi') {
-    if (!socket?.connected) return toast('الاتصال بخادم الغرفة انقطع.');
-    socket.emit('job:task', { job }, result => { if (!result?.ok) toast(result?.error || 'تعذّر تنفيذ المهمة.'); else if (result.message) toast(result.message); });
+function pulseJobObject(name) {
+  const obj=world.getObjectByName(name);if(!obj?.material)return;
+  const materials=Array.isArray(obj.material)?obj.material:[obj.material];
+  const snapshot=materials.map(m=>({m,emissive:m.emissive?.getHex?.(),intensity:m.emissiveIntensity}));
+  for(const item of snapshot){if(item.m.emissive)item.m.emissive.set('#8ee3ae');if('emissiveIntensity' in item.m)item.m.emissiveIntensity=Math.max(.38,Number(item.m.emissiveIntensity)||0);}
+  window.setTimeout(()=>{for(const item of snapshot){if(item.m.emissive&&item.emissive!==undefined)item.m.emissive.setHex(item.emissive);if(item.intensity!==undefined)item.m.emissiveIntensity=item.intensity;}},1800);
+}
+function showJobWorkEffect(job,step) {
+  const visuals={mechanic:['repair vehicle body','tool cabinet','repair vehicle body'],it:['IT station display','IT station keyboard','IT station display'],electronics:['device under repair','soldering station','device under repair'],delivery:['delivery pallet crate','delivery sorting table','delivery parcel'],police:['police noticeboard','police service desk'],criminal:['electronics shipment crate','shipment label']};
+  const name=visuals[job]?.[step];if(name)pulseJobObject(name);
+  if(job==='delivery'&&step===0){const parcel=world.getObjectByName('delivery pallet crate');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}}
+  if(job==='criminal'&&step===0){stolenGoodsCrate.visible=false;window.setTimeout(()=>{stolenGoodsCrate.visible=true;},25000);}
+}
+function finishCriminalUniform() {
+  if(selfAvatar){scene.remove(selfAvatar);selfAvatar.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
+  selfAvatar=makeAvatar(playerName,JOBS.criminal.color,'criminal',true);selfAvatar.position.copy(playerPosition);selfAvatar.visible=active&&cameraView==='third'&&!isDriving;scene.add(selfAvatar);updateCameraPose();
+}
+function performJobTask(job,target=nearestInteraction) {
+  if(!active||!JOBS[job])return;
+  if(currentJob!==job)return toast(`وظيفتك الحالية ${(JOBS[currentJob]||JOBS.unassigned).label}، وهذه المهمة لمهنة ${JOBS[job].label}.`);
+  const flow=JOB_WORKFLOWS[job];if(!flow)return toast('شغل الدكان يعتمد على ترتيب البضاعة وبيعها للزبائن عند الكاشير.');
+  const session=jobWorkSession?.job===job?jobWorkSession:{job,step:0};
+  const stepIndex=Number(target?.stepIndex);
+  if(!target||target.job!==job||stepIndex!==session.step)return toast(`الخطوة المطلوبة الآن: ${flow[session.step]?.title||'ارجع إلى مقر العمل'}.`);
+  const step=flow[stepIndex];if(!step)return toast('ارجع إلى مقر العمل لبدء مهمة جديدة.');
+  const tx=Number(target.x),tz=Number(target.z);
+  if(!Number.isFinite(tx)||!Number.isFinite(tz)||distanceXZ(playerPosition.x,playerPosition.z,tx,tz)>3.7)return toast('اقترب من علامة المهمة الخضراء ثم اضغط E.');
+  if(job==='police'&&stepIndex===0){if(!robberNpc?.visible||distanceXZ(playerPosition.x,playerPosition.z,robberNpc.position.x,robberNpc.position.z)>3.7)return toast('المشتبه به تحرّك؛ اقترب منه أولاً.');robberNpc.visible=false;window.setTimeout(()=>{if(!robberNpc.visible)robberNpc.visible=true;},45000);}
+  showJobWorkEffect(job,stepIndex);avatarActionUntil=performance.now()+850;
+  if(stepIndex<flow.length-1){jobWorkSession={job,step:stepIndex+1};toast(`✓ ${step.title}. الخطوة التالية: ${flow[stepIndex+1].title}`,3600);updateJobGuide(gameState,true);return;}
+  const rewards={mechanic:28,it:32,electronics:30,delivery:24,police:40,criminal:25};
+  const messages={mechanic:'اكتمل فحص المركبة وإصلاحها واختبارها 🔧',it:'اكتمل تشخيص الحاسوب وإصلاحه واختبار تشغيله 💻',electronics:'اكتملت صيانة الجهاز واختباره 📱',delivery:'استلمت الشحنة وجهزتها وسلّمتها بنجاح 🚚',police:'أوقفت المشتبه به وسجّلت البلاغ في المركز 🚓',criminal:'وصلت بالشحنة إلى نقطة الهروب وأصبحت مطلوباً 🕶️'};
+  if(currentMode==='multi'){
+    if(!socket?.connected)return toast('الاتصال بالغرفة انقطع؛ تقدم المهمة محفوظ عند آخر خطوة، أعد الاتصال ثم جرّب.');
+    socket.emit('job:task',{job,stage:'complete'},result=>{
+      if(!result?.ok){toast(result?.error||'تعذّر تسجيل العمل لدى الخادم.');return;}
+      jobWorkSession=null;
+      if(job==='criminal'){currentJob='criminal';finishCriminalUniform();$('jobValue').textContent=`${JOBS.criminal.icon} ${JOBS.criminal.label}`;}
+      toast(result.message||messages[job]||'اكتمل العمل.');updateJobGuide(gameState,true);
+    });
     return;
   }
-  const now = Date.now();
-  if (now - localJobCooldown < 5000) return toast('خذ وقتك، المهمة التالية بعد قليل.');
-  const locations = { shopkeeper:[-2.15,-5.15], mechanic:[-57,11.2], it:[55,11.2], electronics:[73,11.2], delivery:[-42,35.2], criminal:[13,23.3] };
-  if (job === 'police') {
-    if (!robberNpc?.visible || distanceXZ(playerPosition.x, playerPosition.z, robberNpc.position.x, robberNpc.position.z) > 3.7) return toast('اقترب من المشتبه به في الشارع ثم اضغط E.');
-    robberNpc.visible = false; setTimeout(() => { robberNpc.visible = true; }, 14000);
-  } else {
-    const [x,z] = locations[job] || [999,999];
-    if (distanceXZ(playerPosition.x, playerPosition.z, x, z) > 4.0) return toast('اقترب من موقع عملك المبيّن في الحارة.');
-  }
-  localJobCooldown = now;
-  const rewards = { shopkeeper:16, mechanic:28, it:32, electronics:30, delivery:24, police:40, criminal:25 };
-  const workMessages = {
-    shopkeeper: 'أنجزت عملية بيع عند الكاشير',
-    mechanic: 'أنهيت طلب صيانة مركبة في الورشة 🔧',
-    it: 'أصلحت عطل حاسوب وقدّمت دعماً تقنياً 💻',
-    electronics: 'أنهيت صيانة جهاز إلكتروني 📱',
-    delivery: 'سلّمت طلباً من مستودع التوصيل 🚚',
-    police: 'تعاملت مع بلاغ وألقيت القبض على المشتبه به 🚓',
-    criminal: 'سرقت شحنة إلكترونيات وصرت مطلوباً 🕶️'
-  };
-  if (job === 'criminal') { toast('سرقت شحنة إلكترونيات! صرت مطلوباً للشرطة.'); selfAvatar?.userData && (selfAvatar.userData.wanted = true); if (selfAvatar) { scene.remove(selfAvatar); selfAvatar = makeAvatar(playerName, JOBS.criminal.color, 'criminal', true); selfAvatar.position.copy(playerPosition); selfAvatar.visible = cameraView === 'third'; scene.add(selfAvatar); } currentJob = 'criminal'; }
-  gameState.balance += rewards[job] || 20; gameState.totalSales += rewards[job] || 20;
-  renderState(gameState); toast(`${workMessages[job] || 'أنجزت المهمة'} — +${moneyFmt(rewards[job] || 20)} إلى خزنة العالم.`);
+  const now=Date.now();if(now-localJobCooldown<2200)return toast('انتظر قليلاً قبل بدء دورة عمل جديدة.');localJobCooldown=now;
+  if(job==='criminal'){currentJob='criminal';try{localStorage.setItem(soloJobStorageKey,'criminal');}catch{}finishCriminalUniform();$('jobValue').textContent=`${JOBS.criminal.icon} ${JOBS.criminal.label}`;}
+  gameState.balance=(Number(gameState.balance)||0)+(rewards[job]||20);gameState.totalSales=(Number(gameState.totalSales)||0)+(rewards[job]||20);jobWorkSession=null;
+  renderState(gameState);toast(`${messages[job]||'أنجزت المهمة'} — أجرك ${moneyFmt(rewards[job]||20)} أُضيف إلى خزنة العالم.`);updateJobGuide(gameState,true);
 }
 function setServerStatus(message, kind = '') {
   const el = $('serverConnectionStatus');
@@ -2059,14 +2072,28 @@ const targets = [
   { id:'shelf-milk', label:'رف الألبان', x:5.02, z:-0.55, type:'shelf', product:'milk' },
   { id:'shopping-cart', label:'عربة التسوق', x:6.35, z:4.05, type:'cart' },
   { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-54, z:43.55, type:'vehicle', job:'police' },
-  { id:'job-shopkeeper', label:'مهمة صاحب الدكان — بجانب الكاشير', x:-2.15, z:-5.15, type:'jobTask', job:'shopkeeper', icon:'🧾' },
-  { id:'job-mechanic', label:'ورشة الميكانيك — صيانة مركبة', x:-57, z:11.2, type:'jobTask', job:'mechanic', icon:'🔧' },
-  { id:'job-it', label:'مركز تقنية المعلومات — إصلاح حاسوب', x:55, z:11.2, type:'jobTask', job:'it', icon:'💻' },
-  { id:'job-electronics', label:'مركز الإلكترونيات — صيانة جهاز', x:73, z:11.2, type:'jobTask', job:'electronics', icon:'📱' },
-  { id:'job-police', label:'مشتبه به في الشارع — قبض عليه', x:6, z:22, type:'jobTask', job:'police', icon:'🚓' },
-  { id:'job-delivery', label:'مستودع التوصيل — استلام وتسليم طلب', x:-42, z:35.2, type:'jobTask', job:'delivery', icon:'🚚' },
-  { id:'job-criminal', label:'شحنة إلكترونيات — سرقة (تجعلك مطلوباً)', x:13, z:23.3, type:'jobTask', job:'criminal', icon:'🕶️' }
+  { id:'job-mechanic-0', label:'فحص السيارة', x:-59.65, z:10.15, type:'jobTask', job:'mechanic', stepIndex:0, icon:'🔧' },
+  { id:'job-mechanic-1', label:'خزانة أدوات الورشة', x:-52.35, z:8.45, type:'jobTask', job:'mechanic', stepIndex:1, icon:'🧰' },
+  { id:'job-mechanic-2', label:'اختبار السيارة', x:-54.35, z:10.15, type:'jobTask', job:'mechanic', stepIndex:2, icon:'🚗' },
+  { id:'job-it-0', label:'تشخيص العطل', x:51.3, z:9.2, type:'jobTask', job:'it', stepIndex:0, icon:'💻' },
+  { id:'job-it-1', label:'إصلاح النظام', x:55, z:9.2, type:'jobTask', job:'it', stepIndex:1, icon:'🪛' },
+  { id:'job-it-2', label:'اختبار الحاسوب', x:58.7, z:9.2, type:'jobTask', job:'it', stepIndex:2, icon:'✅' },
+  { id:'job-electronics-0', label:'فحص الجهاز', x:69.8, z:9.25, type:'jobTask', job:'electronics', stepIndex:0, icon:'📱' },
+  { id:'job-electronics-1', label:'إصلاح الدارة', x:73, z:9.25, type:'jobTask', job:'electronics', stepIndex:1, icon:'🔌' },
+  { id:'job-electronics-2', label:'اختبار الجهاز', x:76.2, z:9.25, type:'jobTask', job:'electronics', stepIndex:2, icon:'✅' },
+  { id:'job-delivery-0', label:'استلام الطرد', x:-46.15, z:32.65, type:'jobTask', job:'delivery', stepIndex:0, icon:'📦' },
+  { id:'job-delivery-1', label:'تجهيز الطلب', x:-42, z:35.15, type:'jobTask', job:'delivery', stepIndex:1, icon:'🧾' },
+  { id:'job-delivery-2', label:'تسليم الطلب', x:-21, z:20.5, type:'jobTask', job:'delivery', stepIndex:2, icon:'🚚' },
+  { id:'job-police-0', label:'المشتبه به — إيقاف', x:6, z:22, type:'jobTask', job:'police', stepIndex:0, icon:'🚓' },
+  { id:'job-police-1', label:'مركز الشرطة — تسجيل البلاغ', x:-63, z:35.2, type:'jobTask', job:'police', stepIndex:1, icon:'📋' },
+  { id:'job-criminal-0', label:'شحنة إلكترونيات — خذها', x:13, z:23.3, type:'jobTask', job:'criminal', stepIndex:0, icon:'🕶️' },
+  { id:'job-criminal-1', label:'نقطة الهروب', x:34, z:25.2, type:'jobTask', job:'criminal', stepIndex:1, icon:'🏃' }
 ];
+for(const target of targets.filter(t=>t.type==='jobTask')) {
+  const step=JOB_WORKFLOWS[target.job]?.[target.stepIndex];
+  const marker=labelSprite(`${target.stepIndex+1}. ${step?.title||target.label}`,{bg:'#175d47ee',color:'#f1ffd8',fontSize:27,width:540,height:86});
+  marker.position.set(target.x,2.55,target.z);marker.scale.set(2.0,.34,1);marker.userData.billboard=true;marker.visible=false;scene.add(marker);target.marker=marker;
+}
 function claimShoppingCart() {
   if (!gameState.fixtures?.cart) return toast('العربة غير موجودة بعد؛ اشترها من كتالوج تجهيزات الدكان.');
   if (heldItem) return toast('ضع المنتج أولاً، ثم أمسك العربة.');
@@ -2128,7 +2155,7 @@ function interactionLabel(target) {
     return playerCart.length ? `اضغط E للمحاسبة · إجمالي ${moneyFmt(cartTotal())}` : (heldItem ? 'ضع المنتج في العربة أو على الرف أولاً' : `اضغط E عند الكاشير لبيع قطعة ${gameState.inventory[selectedProduct]?.name || 'المنتج'}`);
   }
   if (target.type === 'order') return 'الشراء من زر «شراء بضاعة للمخزن» في لوحة المتجر';
-  if (target.type === 'jobTask') { const j = JOBS[target.job] || JOBS.unassigned; return currentJob === target.job ? `اضغط E لتنفيذ مهمة ${j.label} وزيادة دخل العالم` : `موقع عمل ${j.label} — غيّر وظيفتك أو اطلب تعيين المضيف`; }
+  if (target.type === 'jobTask') { const flow=JOB_WORKFLOWS[target.job]||[];const step=flow[target.stepIndex];return step?`مهمة ${target.stepIndex+1}/${flow.length}: ${step.title} — اضغط E لإنجاز الخطوة`:`موقع عمل ${(JOBS[target.job]||JOBS.unassigned).label}`; }
   return target.label;
 }
 function updateNearestInteraction() {
@@ -2137,15 +2164,20 @@ function updateNearestInteraction() {
   const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y = 0;
   if (forward.lengthSq() > 0.0001) forward.normalize();
   for (const t of targets) {
-    if (t.type === 'jobTask' && t.job !== currentJob) continue;
+    if (t.type === 'jobTask') {
+      if(t.job!==currentJob)continue;
+      const wantedStep=jobWorkSession?.job===currentJob?jobWorkSession.step:0;
+      if(t.stepIndex!==wantedStep)continue;
+      if(t.job==='police'&&t.stepIndex===0&&!robberNpc?.visible)continue;
+      if(t.job==='criminal'&&t.stepIndex===0&&!stolenGoodsCrate.visible)continue;
+    }
     if (t.type === 'vehicle') { if (currentJob !== 'police' || isDriving || (currentMode === 'multi' && vehicleHolderId && vehicleHolderId !== selfPlayerId)) continue; t.x = patrolCar.position.x; t.z = patrolCar.position.z + 1.55; }
     if (t.type === 'shelf' && !gameState.fixtures?.shelves?.[t.product]) continue;
     if (t.type === 'stock' && !(gameState.inventory?.[t.product]?.stock > 0)) continue;
     if (t.type === 'register' && !gameState.fixtures?.register) continue;
-    if (t.type === 'jobTask' && t.job === 'shopkeeper' && !gameState.fixtures?.register) continue;
     if (t.type === 'order' && !gameState.fixtures?.computer) continue;
     if (t.type === 'cart' && !gameState.fixtures?.cart) continue;
-    if (t.type === 'jobTask' && t.job === 'police' && robberNpc) { t.x = robberNpc.position.x; t.z = robberNpc.position.z; }
+    if (t.type === 'jobTask' && t.job === 'police' && t.stepIndex===0 && robberNpc?.visible) { t.x = robberNpc.position.x; t.z = robberNpc.position.z; }
     const dx = t.x - playerPosition.x, dz = t.z - playerPosition.z;
     const d = Math.hypot(dx, dz);
     if (d >= min) continue;
@@ -2154,6 +2186,12 @@ function updateNearestInteraction() {
     nearest = t; min = d;
   }
   nearestInteraction = nearest;
+  const stage=jobWorkSession?.job===currentJob?jobWorkSession.step:0;
+  for(const t of targets.filter(item=>item.type==='jobTask')) {
+    if(!t.marker)continue;
+    const activeMarker=t.job===currentJob&&t.stepIndex===stage&&!(t.job==='police'&&t.stepIndex===0&&!robberNpc?.visible)&&!(t.job==='criminal'&&t.stepIndex===0&&!stolenGoodsCrate.visible);
+    t.marker.visible=!!active&&activeMarker;t.marker.position.set(t.x,2.55,t.z);
+  }
   if (nearest) {
     $('interactionText').textContent = interactionLabel(nearest);
     const keyEl = $('interactionKey');
@@ -2175,7 +2213,7 @@ function interact() {
   if (!active || paused) return;
   if (!nearestInteraction) return toast('اقترب من الحاسوب أو الرف أو العربة أو الكاشير للتفاعل.', 1800);
   const target = nearestInteraction;
-  if (target.type === 'jobTask') { performJobTask(target.job); return; }
+  if (target.type === 'jobTask') { performJobTask(target.job,target); return; }
   if (target.type === 'vehicle') { enterPoliceVehicle(); return; }
   if (target.type === 'order') { openPaymentModal('order', selectedProduct); return; }
   if (target.type === 'stock') {
