@@ -427,7 +427,7 @@ io.on('connection', socket => {
     const job = String(payload.job || '');
     if (!JOB_IDS.has(job) || job === 'unassigned' || actor.job !== job) return ack({ok:false,error:'هذه المهمة ليست ضمن وظيفتك الحالية.'});
     const now = Date.now(), last = room.lastGameTaskByPlayer.get(socket.id) || 0;
-    if (now-last < 8000) return ack({ok:false,error:'استرح قليلاً قبل تنفيذ المهمة التالية.'});
+    if (now-last < 2500) return ack({ok:false,error:'استرح ثانيتين قبل تنفيذ دورة العمل التالية.'});
     const points = {shopkeeper:[-2.15,-5.15],mechanic:[-57,11.2],it:[55,11.2],electronics:[73,11.2],delivery:[-21,20.5],criminal:[34,25.2]};
     let valid = false, message = '', reward = 0;
     if (job === 'police') {
