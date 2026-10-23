@@ -2552,7 +2552,7 @@ function updateAmbient(dt,time) {
       for(const arm of data.npcArms||[]) {
         const side=arm.side;
         arm.shoulder.rotation.x=Math.sin(phase+(side>0?0:Math.PI))*.22-.12;
-        arm.shoulder.rotation.z=side*(data.workJob==='mechanic'?.28:data.workJob==='delivery'?.18:.12);
+        arm.shoulder.rotation.z=side*(data.workJob==='mechanic' ? 0.28 : data.workJob==='delivery' ? 0.18 : 0.12);
         arm.elbow.rotation.x=-.28+Math.sin(phase*1.3+side)*.2;
       }
       for(const leg of data.npcLegs||[]) { leg.hip.rotation.x=0; leg.knee.rotation.x=0; }
