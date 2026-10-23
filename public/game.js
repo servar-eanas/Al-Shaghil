@@ -718,6 +718,22 @@ const residentSeeds=[
 ];
 residentSeeds.forEach(([x,z,zone],i)=>buildResident(x,z,residentColors[i%residentColors.length],1.7+i*1.31,zone));
 
+// Visible staff members keep the workplaces alive even when the player chooses another job.
+function buildWorkmate(x,z,shirt,phase,job,label) {
+  const g=buildNpc(x,z,shirt,phase);
+  g.userData.behavior='worker'; g.userData.workJob=job; g.userData.workPhase=phase;
+  g.userData.zone=null; g.userData.path=[]; g.userData.pathIndex=0; g.userData.wait=0;
+  if(g.userData.customerBadge){g.remove(g.userData.customerBadge);g.userData.customerBadge=null;}
+  const tag=labelSprite(label,{bg:'#203c35ee',color:'#e7f7ec',fontSize:28,width:330,height:78});
+  tag.position.set(0,2.68,0);tag.scale.set(1.02,.25,1);tag.userData.billboard=true;g.add(tag);
+  g.rotation.y=Math.PI;
+  return g;
+}
+buildWorkmate(-58.7,12.8,'#d18b3f',2.4,'mechanic','ميكانيكي · على رأس عمله');
+buildWorkmate(53.5,12.8,'#4b8192',4.1,'it','فني حاسوب · يعمل');
+buildWorkmate(71.6,12.8,'#7559a7',5.8,'electronics','فني إلكترونيات · يعمل');
+buildWorkmate(-43.8,36.7,'#9d9852',7.2,'delivery','مندوب · يجهّز الطلبات');
+
 function makeAvatar(name, color = '#477b63', job = 'unassigned', wanted = false) {
   const g = new THREE.Group(); g.userData.job = job; g.userData.name = name; g.userData.wanted = !!wanted;
   const jobDef = JOBS[job] || JOBS.unassigned;
@@ -2521,6 +2537,19 @@ function updateAmbient(dt,time) {
   npcGroups.forEach((g,i)=>{
     if(!g.visible)return;
     const data=g.userData,zone=data.zone;
+    if(data.behavior==='worker') {
+      // Small repeating work motions: mechanics inspect, technicians type, and couriers handle parcels.
+      const phase=time*2.1+(data.workPhase||0);
+      for(const arm of data.npcArms||[]) {
+        const side=arm.side;
+        arm.shoulder.rotation.x=Math.sin(phase+(side>0?0:Math.PI))*.22-.12;
+        arm.shoulder.rotation.z=side*(data.workJob==='mechanic'?.28:data.workJob==='delivery'?.18:.12);
+        arm.elbow.rotation.x=-.28+Math.sin(phase*1.3+side)*.2;
+      }
+      for(const leg of data.npcLegs||[]) { leg.hip.rotation.x=0; leg.knee.rotation.x=0; }
+      data.body.position.y=1.02+Math.sin(phase)*.018;
+      continue;
+    }
     const managedShopper=data.behavior==='shopper'&&(currentMode==='solo'||(currentMode==='multi'&&isRoomHost&&socket?.connected));
     if(managedShopper)updateCustomerBehavior(g,dt,time);
     data.wait=Math.max(0,(data.wait||0)-dt);
