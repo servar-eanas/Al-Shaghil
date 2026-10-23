@@ -2557,7 +2557,7 @@ function updateAmbient(dt,time) {
       }
       for(const leg of data.npcLegs||[]) { leg.hip.rotation.x=0; leg.knee.rotation.x=0; }
       data.body.position.y=1.02+Math.sin(phase)*.018;
-      continue;
+      return;
     }
     const managedShopper=data.behavior==='shopper'&&(currentMode==='solo'||(currentMode==='multi'&&isRoomHost&&socket?.connected));
     if(managedShopper)updateCustomerBehavior(g,dt,time);
