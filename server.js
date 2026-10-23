@@ -237,8 +237,8 @@ io.on('connection', socket => {
     const p = room?.players.get(socket.id);
     if (!p || !payload) return;
     if (!p.driving) {
-      p.x = Math.max(-57, Math.min(57, Number(payload.x) || 0));
-      p.z = Math.max(-51, Math.min(56, Number(payload.z) || 0));
+      p.x = Math.max(-96, Math.min(96, Number(payload.x) || 0));
+      p.z = Math.max(-86, Math.min(90, Number(payload.z) || 0));
       p.rot = Number(payload.rot) || 0;
     }
     socket.to(code).volatile.emit('player:moved', { ...publicPlayer(p, room), x: p.x, z: p.z, rot: p.rot, heldItem: p.heldItem || null });
@@ -428,18 +428,19 @@ io.on('connection', socket => {
     if (!JOB_IDS.has(job) || job === 'unassigned' || actor.job !== job) return ack({ok:false,error:'هذه المهمة ليست ضمن وظيفتك الحالية.'});
     const now = Date.now(), last = room.lastGameTaskByPlayer.get(socket.id) || 0;
     if (now-last < 8000) return ack({ok:false,error:'استرح قليلاً قبل تنفيذ المهمة التالية.'});
-    const points = {shopkeeper:[-2.15,-5.15],mechanic:[-57,11.2],it:[55,11.2],electronics:[73,11.2],delivery:[-42,35.2],criminal:[13,23.3]};
+    const points = {shopkeeper:[-2.15,-5.15],mechanic:[-57,11.2],it:[55,11.2],electronics:[73,11.2],delivery:[-21,20.5],criminal:[34,25.2]};
     let valid = false, message = '', reward = 0;
     if (job === 'police') {
       const nearNpc = Math.hypot(actor.x-6, actor.z-22) < 5.8;
+      const atStation = payload.stage === 'complete' && Math.hypot(actor.x+63, actor.z-35.2) < 5.2;
       const wanted = [...room.players.values()].find(p => p.id !== actor.id && p.wanted && Math.hypot(actor.x-p.x, actor.z-p.z) < 4.0);
-      valid = !!nearNpc || !!wanted;
+      valid = !!nearNpc || !!atStation || !!wanted;
       if (valid && wanted) { wanted.wanted = false; io.to(code).emit('room:player-updated', publicPlayer(wanted, room)); io.to(code).emit('room:players', getAllRoomPlayers(room)); }
-      reward = 40; message = wanted ? `ألقى ${actor.name} القبض على ${wanted.name}.` : `أنهى ${actor.name} بلاغ المشتبه به.`;
+      reward = 40; message = wanted ? `ألقى ${actor.name} القبض على ${wanted.name}.` : atStation ? `سجّل ${actor.name} بلاغ الشرطة في المركز.` : `أنهى ${actor.name} بلاغ المشتبه به.`;
     } else if (job === 'criminal') {
-      const [x,z] = points.criminal; valid = Math.hypot(actor.x-x, actor.z-z) < 4.0;
-      if (valid) { actor.wanted = true; actor.wallet = (Number(actor.wallet)||100) + 25; io.to(code).emit('room:player-updated', publicPlayer(actor, room)); io.to(code).emit('room:players', getAllRoomPlayers(room)); }
-      reward = 0; message = `سرق ${actor.name} شحنة أجهزة وأصبح مطلوباً للشرطة.`;
+      const [x,z] = points.criminal; valid = Math.hypot(actor.x-x, actor.z-z) < 4.5;
+      if (valid) { actor.wanted = true; io.to(code).emit('room:player-updated', publicPlayer(actor, room)); io.to(code).emit('room:players', getAllRoomPlayers(room)); }
+      reward = 25; message = `وصل ${actor.name} بالشحنة إلى نقطة الهروب وأصبح مطلوباً للشرطة.`;
     } else {
       const [x,z] = points[job] || [999,999]; valid = Math.hypot(actor.x-x, actor.z-z) < 4.5;
       reward = ({mechanic:28,it:32,electronics:30,delivery:24,shopkeeper:16})[job] || 20;
@@ -472,7 +473,7 @@ io.on('connection', socket => {
     const old = room.data.vehiclePose || {x:-8,z:18.6,rot:0};
     const x=Number(payload.x), z=Number(payload.z), rot=Number(payload.rot);
     if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(rot)) return;
-    if (x < -56 || x > 56 || z < -50 || z > 55) return;
+    if (x < -96 || x > 96 || z < -86 || z > 90) return;
     // Reject teleport-sized movement while tolerating ordinary websocket jitter.
     if (Math.hypot(x-old.x,z-old.z) > 5.5) return;
     room.data.vehiclePose={x,z,rot:Math.max(-Math.PI*20,Math.min(Math.PI*20,rot))};
