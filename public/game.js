@@ -78,7 +78,7 @@ let vehicleEmitAt = 0;
 let isRoomHost = false;
 let roomHostId = null;
 let roomPlayers = [];
-let cameraView = 'first';
+let cameraView = 'third';
 let soloGameMinuteTimer = null;
 let localJobCooldown = 0;
 let selfAvatar = null;
@@ -1131,6 +1131,7 @@ function enterWorld(mode) {
   $('entryScreen').classList.add('hidden'); $('pauseMenu').classList.add('hidden');
   setHudVisible(true);
   $('modeLabel').textContent = mode === 'multi' ? `غرفة ${roomCode}` : 'عالم فردي محفوظ';
+  $('viewLabel').textContent = cameraView === 'first' ? 'منظور أول' : 'منظور ثالث'; $('viewToggle').classList.toggle('active', cameraView === 'third');
   $('jobValue').textContent = `${(JOBS[currentJob] || JOBS.unassigned).icon} ${(JOBS[currentJob] || JOBS.unassigned).label}`;
   refreshSelfAvatar();
   if (selfAvatar) selfAvatar.visible = cameraView === 'third';
