@@ -775,7 +775,7 @@ function makeAvatar(name, color = '#477b63', job = 'unassigned', wanted = false)
     const legMesh=new THREE.Mesh(new THREE.CapsuleGeometry(.09,.295,4,8),pantsMat);legMesh.position.set(side*.01,-.235,.02);legMesh.castShadow=true;legPivot.add(legMesh);
     box(legPivot,'avatar shoe',side*.01,-.49,-.045,.17,.18,.28,shoeMat);legJoints.push({side,pivot:legPivot});
   }
-  g.userData.motion={body,arms:armJoints,legs:legJoints,phase:Math.random()*Math.PI*2};
+  g.userData.motion={body,arms:armJoints,legs:legJoints,phase:Math.random()*Math.PI*2,walkPhase:0};
   if (job === 'police') {
     box(g,'police cap',0,1.77,-.02,.35,.12,.34,mat('police cap','#182a48',.8));
     box(g,'police badge',.10,1.07,-.238,.085,.13,.026,mat('police badge','#d7c079',.35,{metalness:.35}));
@@ -1212,7 +1212,7 @@ function createRemoteAvatar(player) {
   if (!player?.id || player.id === selfPlayerId) return;
   if (remoteAvatars.has(player.id)) { updateRemoteAvatar(player); return; }
   const avatar = makeAvatar(player.name || 'لاعب', (JOBS[player.job] || JOBS.unassigned).color, player.job || 'unassigned', player.wanted);
-  avatar.position.set(Number(player.x)||0,0,Number(player.z)||4.1); avatar.rotation.y = Number(player.rot)||0; avatar.visible = !player.driving;
+  avatar.position.set(Number(player.x)||0,0,Number(player.z)||4.1); avatar.rotation.y = Number(player.rot)||0; avatar.visible = !player.driving; avatar.userData.driving=!!player.driving;avatar.userData.remoteMoveUntil=0;
   scene.add(avatar); remoteAvatars.set(player.id, avatar); voiceStates.set(player.id, !!player.voiceReady);
   updateRemoteHeldProduct(player.id, player.heldItem || null);
 }
@@ -1220,11 +1220,14 @@ function updateRemoteAvatar(player) {
   if (!player?.id || player.id === selfPlayerId) return;
   let avatar = remoteAvatars.get(player.id);
   if (!avatar) { createRemoteAvatar(player); return; }
+  const oldX=avatar.position.x,oldZ=avatar.position.z;
   if (Number.isFinite(Number(player.x))) avatar.position.x = Number(player.x);
   if (Number.isFinite(Number(player.z))) avatar.position.z = Number(player.z);
+  if(Math.hypot(avatar.position.x-oldX,avatar.position.z-oldZ)>.01)avatar.userData.remoteMoveUntil=performance.now()+180;
+  if(Object.prototype.hasOwnProperty.call(player,'driving'))avatar.userData.driving=!!player.driving;
   if ((avatar.userData.job || 'unassigned') !== (player.job || 'unassigned') || !!avatar.userData.wanted !== !!player.wanted) {
     const pos = avatar.position.clone(), rot = avatar.rotation.y; scene.remove(avatar); avatar.traverse(o => { if (o.geometry) o.geometry.dispose(); });
-    const replacement = makeAvatar(player.name || 'لاعب', (JOBS[player.job] || JOBS.unassigned).color, player.job || 'unassigned', player.wanted); replacement.position.copy(pos); replacement.rotation.y = rot; scene.add(replacement); remoteAvatars.set(player.id, replacement); avatar = replacement;
+    const replacement = makeAvatar(player.name || 'لاعب', (JOBS[player.job] || JOBS.unassigned).color, player.job || 'unassigned', player.wanted); replacement.position.copy(pos); replacement.rotation.y = rot; replacement.userData.remoteMoveUntil=avatar.userData.remoteMoveUntil||0;replacement.userData.driving=!!player.driving;scene.add(replacement); remoteAvatars.set(player.id, replacement); avatar = replacement;
   }
   if (Number.isFinite(Number(player.rot))) avatar.rotation.y = Number(player.rot);
   if (Object.prototype.hasOwnProperty.call(player,'driving')) avatar.visible = !player.driving;
@@ -1556,7 +1559,7 @@ function ensureSocket() {
   socket.on('room:player-updated', p => {
     updateRemoteAvatar(p);
     if (p?.id === selfPlayerId) {
-      currentJob = p.job || 'unassigned';
+      const nextJob=p.job||'unassigned';if(nextJob!==currentJob)jobWorkSession=null;currentJob = nextJob;
       $('jobValue').textContent = `${(JOBS[currentJob] || JOBS.unassigned).icon} ${(JOBS[currentJob] || JOBS.unassigned).label}`;
       isDriving = !!p.driving; $('vehicleExit').classList.toggle('hidden', !isDriving);
       refreshSelfAvatar();
@@ -1565,7 +1568,7 @@ function ensureSocket() {
   socket.on('room:players', players => {
     roomPlayers = Array.isArray(players) ? players : [];
     const me = roomPlayers.find(p => p.id === selfPlayerId);
-    if (me) { isRoomHost = !!me.isHost; roomHostId = roomPlayers.find(p => p.isHost)?.id || roomHostId; currentJob = me.job || 'unassigned'; refreshSelfAvatar(); }
+    if (me) { const nextJob=me.job||'unassigned';if(nextJob!==currentJob)jobWorkSession=null;isRoomHost = !!me.isHost; roomHostId = roomPlayers.find(p => p.isHost)?.id || roomHostId; currentJob = nextJob; refreshSelfAvatar(); }
     renderJobAssignments(); updateStoreButtonUi(gameState);
   });
   socket.on('vehicle:state', data => {
@@ -2343,15 +2346,15 @@ canvas.addEventListener('pointermove', e => {
 function endLook(e){if(e.pointerId===lookPointer){lookPointer=null;lastLookPoint=null;}}
 canvas.addEventListener('pointerup',endLook); canvas.addEventListener('pointercancel',endLook);
 
-function animateLocalAvatar(dt, moving) {
-  if(!selfAvatar?.userData?.motion)return;
-  const motion=selfAvatar.userData.motion,work=performance.now()<avatarActionUntil;
-  if(moving)avatarWalkPhase+=dt*(keys.ShiftLeft||keys.ShiftRight?11.5:8.2);
-  const phase=avatarWalkPhase+(motion.phase||0);
-  for(const limb of motion.legs||[]) {const target=work?0:Math.sin(phase+(limb.side<0?Math.PI:0))*.58*(moving?1:0);limb.pivot.rotation.x+=(target-limb.pivot.rotation.x)*Math.min(1,dt*12);}
-  for(const limb of motion.arms||[]) {const target=work?(-.65+(limb.side<0?.18:0)):Math.sin(phase+(limb.side>0?Math.PI:0))*.38*(moving?1:0);limb.pivot.rotation.x+=(target-limb.pivot.rotation.x)*Math.min(1,dt*10);limb.pivot.rotation.z+=(0-limb.pivot.rotation.z)*Math.min(1,dt*8);}
-  if(motion.body){const bob=moving?Math.abs(Math.sin(phase*2))*.045:0;motion.body.position.y+=(.98+bob-motion.body.position.y)*Math.min(1,dt*10);const tilt=work?0.045:moving?0.025:0;motion.body.rotation.x+=(tilt-motion.body.rotation.x)*Math.min(1,dt*8);}
+function animateAvatarModel(avatar,dt,moving,working=false) {
+  const motion=avatar?.userData?.motion;if(!motion)return;
+  if(moving)motion.walkPhase=(motion.walkPhase||0)+dt*(keys.ShiftLeft||keys.ShiftRight?11.5:8.2);
+  const phase=(motion.walkPhase||0)+(motion.phase||0);
+  for(const limb of motion.legs||[]) {const target=working?0:Math.sin(phase+(limb.side<0?Math.PI:0))*.58*(moving?1:0);limb.pivot.rotation.x+=(target-limb.pivot.rotation.x)*Math.min(1,dt*12);}
+  for(const limb of motion.arms||[]) {const target=working?(-.65+(limb.side<0?.18:0)):Math.sin(phase+(limb.side>0?Math.PI:0))*.38*(moving?1:0);limb.pivot.rotation.x+=(target-limb.pivot.rotation.x)*Math.min(1,dt*10);limb.pivot.rotation.z+=(0-limb.pivot.rotation.z)*Math.min(1,dt*8);}
+  if(motion.body){const bob=moving?Math.abs(Math.sin(phase*2))*.045:0;motion.body.position.y+=(.98+bob-motion.body.position.y)*Math.min(1,dt*10);const tilt=working?0.045:moving?0.025:0;motion.body.rotation.x+=(tilt-motion.body.rotation.x)*Math.min(1,dt*8);}
 }
+function animateLocalAvatar(dt,moving) {animateAvatarModel(selfAvatar,dt,moving,performance.now()<avatarActionUntil);}
 function updateMovement(dt) {
   if (!active || paused) { animateLocalAvatar(dt,false); return; }
   const forward = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - touchMove.y;
@@ -2705,6 +2708,7 @@ function animate(now) {
   updateMovement(dt); updateShoppingCart(dt); updateAmbient(dt,now/1000); updateDayNight(); updateNearestInteraction(); updateJobGuide();
   // Keep remote avatars readable as the camera moves.
   for (const avatar of remoteAvatars.values()) {
+    animateAvatarModel(avatar,dt,performance.now()<(avatar.userData.remoteMoveUntil||0)&&!avatar.userData.driving,false);
     for (const tag of avatar.children) if (tag.userData?.billboard) tag.quaternion.copy(camera.quaternion);
   }
   for(const npc of npcGroups)for(const tag of npc.children)if(tag.userData?.billboard)tag.quaternion.copy(camera.quaternion);
