@@ -47,7 +47,7 @@ const JOB_WORKFLOWS = {
   it:[{title:'شخّص العطل على محطة الفحص',x:51.3,z:9.2},{title:'أصلح النظام من المحطة الوسطى',x:55,z:9.2},{title:'اختبر تشغيل الحاسوب بالمحطة الأخيرة',x:58.7,z:9.2}],
   electronics:[{title:'افحص الجهاز على الطاولة الأولى',x:69.8,z:9.25},{title:'أصلح الدارة عند محطة اللحام',x:73,z:9.25},{title:'اختبر الجهاز على الطاولة الأخيرة',x:76.2,z:9.25}],
   delivery:[{title:'استلم الطرد من رصيف المستودع',x:-46.15,z:32.65},{title:'جهّز الطلب على طاولة الفرز',x:-42,z:35.15},{title:'سلّم الطلب عند نقطة التسليم',x:-21,z:20.5}],
-  police:[{title:'اعترض المشتبه به واضغط E لإيقافه',x:6,z:22,dynamic:true},{title:'ارجع لمركز الشرطة وسجّل البلاغ',x:-63,z:35.2}],
+  police:[{title:'اعترض المشتبه به واضغط E لإيقافه',x:6,z:22,dynamic:true},{title:'سجّل البلاغ عند مكتب الشرطة',x:-63,z:34}],
   criminal:[{title:'اقترب من شحنة الأجهزة وخذها',x:13,z:23.3},{title:'انقل الشحنة إلى نقطة الهروب',x:34,z:25.2}]
 };
 let jobWorkSession = null;
@@ -504,6 +504,11 @@ const itStation=buildJobStation('مركز تقنية المعلومات',55,10,'
 const electronicsStation=buildJobStation('مركز الإلكترونيات',73,10,'#7559a7','electronics');
 const policeStation=buildJobStation('مركز الشرطة',-63,34,'#304d7d','police');
 const deliveryStation=buildJobStation('مستودع التوصيل',-42,34,'#8d8e47','delivery');
+const deliveryDropoff = new THREE.Group();deliveryDropoff.name='delivery-dropoff';world.add(deliveryDropoff);
+box(deliveryDropoff,'delivery dropoff platform',-21,.13,20.5,3.2,.25,2.2,mat('delivery dropoff wood','#80664b',.93));
+box(deliveryDropoff,'delivery dropoff parcel',-21,.65,20.5,.72,.78,.72,mat('delivery dropoff parcel','#c4a173',.95));
+box(deliveryDropoff,'delivery dropoff tape',-21,.65,20.13,.75,.045,.04,mat('delivery dropoff tape','#e8d9ad',.8));
+const deliveryDropoffTag=labelSprite('نقطة تسليم الطلبات',{bg:'#25654dee',color:'#f4ffd7',fontSize:31,width:450,height:88});deliveryDropoffTag.position.set(-21,2.15,20.5);deliveryDropoffTag.scale.set(2.0,.39,1);deliveryDropoffTag.userData.billboard=true;deliveryDropoff.add(deliveryDropoffTag);
 const stolenGoodsCrate = new THREE.Group(); world.add(stolenGoodsCrate);
 box(stolenGoodsCrate,'electronics shipment crate',13,.46,22.1,1.25,.9,.95,mat('electronics shipment crate','#ad824d',.96));
 box(stolenGoodsCrate,'shipment label',13,1.0,21.6,.8,.24,.035,mat('shipment label','#e7dfc9',.86));
@@ -1483,6 +1488,7 @@ function showJobWorkEffect(job,step) {
   const visuals={mechanic:['repair vehicle body','tool cabinet','repair vehicle body'],it:['IT station display','IT station keyboard','IT station display'],electronics:['device under repair','soldering station','device under repair'],delivery:['delivery pallet crate','delivery sorting table','delivery parcel'],police:['police noticeboard','police service desk'],criminal:['electronics shipment crate','shipment label']};
   const name=visuals[job]?.[step];if(name)pulseJobObject(name);
   if(job==='delivery'&&step===0){const parcel=world.getObjectByName('delivery pallet crate');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}}
+  if(job==='delivery'&&step===2){const parcel=deliveryDropoff.getObjectByName('delivery dropoff parcel');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}}
   if(job==='criminal'&&step===0){stolenGoodsCrate.visible=false;window.setTimeout(()=>{stolenGoodsCrate.visible=true;},25000);}
 }
 function finishCriminalUniform() {
@@ -2094,7 +2100,7 @@ const targets = [
   { id:'job-delivery-1', label:'تجهيز الطلب', x:-42, z:35.15, type:'jobTask', job:'delivery', stepIndex:1, icon:'🧾' },
   { id:'job-delivery-2', label:'تسليم الطلب', x:-21, z:20.5, type:'jobTask', job:'delivery', stepIndex:2, icon:'🚚' },
   { id:'job-police-0', label:'المشتبه به — إيقاف', x:6, z:22, type:'jobTask', job:'police', stepIndex:0, icon:'🚓' },
-  { id:'job-police-1', label:'مركز الشرطة — تسجيل البلاغ', x:-63, z:35.2, type:'jobTask', job:'police', stepIndex:1, icon:'📋' },
+  { id:'job-police-1', label:'مكتب الشرطة — تسجيل البلاغ', x:-63, z:34, type:'jobTask', job:'police', stepIndex:1, icon:'📋' },
   { id:'job-criminal-0', label:'شحنة إلكترونيات — خذها', x:13, z:23.3, type:'jobTask', job:'criminal', stepIndex:0, icon:'🕶️' },
   { id:'job-criminal-1', label:'نقطة الهروب', x:34, z:25.2, type:'jobTask', job:'criminal', stepIndex:1, icon:'🏃' }
 ];
