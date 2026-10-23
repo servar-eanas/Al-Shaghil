@@ -1303,10 +1303,10 @@ function updateJobGuide(state = gameState, force = false) {
     return;
   }
   const spots = {
-    mechanic: { label: 'ورشة الميكانيك', x: -34, z: 11.25 },
-    it: { label: 'مركز تقنية المعلومات', x: 22, z: 12.25 },
-    electronics: { label: 'محل الإلكترونيات', x: 34, z: 11.55 },
-    delivery: { label: 'مستودع التوصيل', x: -42, z: 11.25 },
+    mechanic: { label: 'ورشة الميكانيك', x: -57, z: 11.2 },
+    it: { label: 'مركز تقنية المعلومات', x: 55, z: 11.2 },
+    electronics: { label: 'مركز الإلكترونيات', x: 73, z: 11.2 },
+    delivery: { label: 'مستودع التوصيل', x: -42, z: 35.2 },
     criminal: { label: 'شحنة الإلكترونيات', x: 13, z: 23.3 }
   };
   if (currentJob === 'police') {
@@ -1317,7 +1317,7 @@ function updateJobGuide(state = gameState, force = false) {
   const spot = spots[currentJob];
   if (spot) {
     const distance = Math.round(distanceXZ(playerPosition.x, playerPosition.z, spot.x, spot.z));
-    const verbs = { mechanic: 'اقترب من المركبة في الورشة لإتمام الصيانة', it: 'اقترب من محطة الحاسوب لإصلاحه', electronics: 'اقترب من طاولة الأجهزة لإتمام الصيانة', delivery: 'اقترب من نقطة التوصيل لتسليم الطلب', criminal: 'اقترب من الشحنة لسرقتها وستصبح مطلوباً للشرطة' };
+    const verbs = { mechanic: 'اضغط E عند علامة المهمة لإنجاز طلب صيانة وكسب أجر؛ الميكانيكي الموجود بالورشة يواصل العمل بجانبك', it: 'اضغط E عند محطة الإصلاح لإنجاز طلب دعم تقني وكسب أجر؛ الفني الموجود يواصل العمل', electronics: 'اضغط E عند طاولة الأجهزة لإنجاز طلب صيانة وكسب أجر؛ الفني الموجود يواصل العمل', delivery: 'اضغط E عند المستودع لتسليم شحنة افتراضية وكسب أجر؛ المندوب يجهّز الطلبات', criminal: 'اقترب من الشحنة واضغط E لسرقتها، وستصبح مطلوباً للشرطة' };
     text.textContent = `الموقع: ${spot.label} · المسافة ${distance} م. ${verbs[currentJob] || 'اقترب من علامة المهمة'}؛ ثم اضغط E أو «تفاعل».`;
   } else text.textContent = 'افتح قائمة الوظائف لاختيار مهنة، ثم اتبع علامة موقع العمل في الحارة.';
 }
@@ -1474,9 +1474,18 @@ function performJobTask(job) {
   }
   localJobCooldown = now;
   const rewards = { shopkeeper:16, mechanic:28, it:32, electronics:30, delivery:24, police:40, criminal:25 };
+  const workMessages = {
+    shopkeeper: 'أنجزت عملية بيع عند الكاشير',
+    mechanic: 'أنهيت طلب صيانة مركبة في الورشة 🔧',
+    it: 'أصلحت عطل حاسوب وقدّمت دعماً تقنياً 💻',
+    electronics: 'أنهيت صيانة جهاز إلكتروني 📱',
+    delivery: 'سلّمت طلباً من مستودع التوصيل 🚚',
+    police: 'تعاملت مع بلاغ وألقيت القبض على المشتبه به 🚓',
+    criminal: 'سرقت شحنة إلكترونيات وصرت مطلوباً 🕶️'
+  };
   if (job === 'criminal') { toast('سرقت شحنة إلكترونيات! صرت مطلوباً للشرطة.'); selfAvatar?.userData && (selfAvatar.userData.wanted = true); if (selfAvatar) { scene.remove(selfAvatar); selfAvatar = makeAvatar(playerName, JOBS.criminal.color, 'criminal', true); selfAvatar.position.copy(playerPosition); selfAvatar.visible = cameraView === 'third'; scene.add(selfAvatar); } currentJob = 'criminal'; }
   gameState.balance += rewards[job] || 20; gameState.totalSales += rewards[job] || 20;
-  renderState(gameState); toast(`${JOBS[job].label}: أنجزت المهمة وأضفت ${moneyFmt(rewards[job] || 20)} إلى خزنة العالم.`);
+  renderState(gameState); toast(`${workMessages[job] || 'أنجزت المهمة'} — +${moneyFmt(rewards[job] || 20)} إلى خزنة العالم.`);
 }
 function setServerStatus(message, kind = '') {
   const el = $('serverConnectionStatus');
