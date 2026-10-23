@@ -37,7 +37,7 @@
     <aside id="storePanel" class="storePanel glassPanel hud hidden">
       <div class="panelHeading"><div><small>إدارة الأعمال</small><h3>دكّانك</h3></div><div class="panelHeadActions"><span class="levelPill" id="levelValue">LV. 1</span><button id="storePanelClose" class="closeButton panelCloseButton" type="button" aria-label="إغلاق الشريط الجانبي" title="إغلاق">×</button></div></div>
       <div class="storeHoursLine"><span>🕗 الدوام 08:00–22:00</span><b id="storeOpenBadge">مفتوح</b></div>
-      <div class="jobGuide" aria-live="polite"><b id="jobGuideTitle">🏪 صاحب الدكان · هدفك الآن</b><p id="jobGuideText">جهّز الدكان من كتالوج التجهيزات.</p></div>
+      
       <div class="shopStats"><div><small>مبيعات المتجر</small><b id="salesValue">$0</b></div><div><small>المخزون</small><b id="stockValue">0 قطعة</b></div></div>
       <div class="sectionLabel">اختر منتجاً بالضغط عليه</div>
       <div id="inventoryList" class="inventoryList"></div>
@@ -48,6 +48,8 @@
       <button class="secondaryButton fullWidth" id="storeSchedule"><span>🕒</span> تفعيل الدوام التلقائي <em id="scheduleStatus">حسب الساعة</em></button>
       <div class="microcopy">بداية ميسّرة: عندك حاسوب إدارة ورف مياه و6 عبوات بالمخزن. عبّئ الرف واشترِ الكاشير، ثم وسّع تجارتك.</div>
     </aside>
+
+    <div id="jobGuidePanel" class="jobGuide floatingJobGuide hud hidden" aria-live="polite"><b id="jobGuideTitle">🏪 صاحب الدكان · هدفك الآن</b><p id="jobGuideText">جهّز الدكان من كتالوج التجهيزات.</p></div>
 
     <aside id="cartPanel" class="glassPanel cartPanel hud hidden">
       <div class="panelHeading"><div><small>تسوق فعلي</small><h3>عربة التسوق</h3></div><button id="closeCart" class="closeButton">×</button></div>
