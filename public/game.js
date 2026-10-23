@@ -245,8 +245,8 @@ box(world, 'front lintel', 0, 3.15, 6.45, 3.2, 1.1, 0.31, outsideWall);
 box(world, 'glass left', -1.55, 1.4, 6.25, 0.08, 2.55, 0.08, mat('glassframe', '#34564e', 0.45));
 box(world, 'glass right', 1.55, 1.4, 6.25, 0.08, 2.55, 0.08, mat('glassframe2', '#34564e', 0.45));
 box(world, 'shop sign board', 0, 3.62, 6.25, 5.8, 0.85, 0.24, mat('signboard', '#234d41', 0.62));
-const shopSign = labelSprite('الشغيل', { bg: '#234d41', fontSize: 60, width: 700, height: 130 });
-shopSign.position.set(0, 3.62, 6.105); shopSign.scale.set(4.8, 0.9, 1); world.add(shopSign);
+const shopSign = labelSprite('دكانك الخاص · الشغيل', { bg: '#234d41', color:'#e6ffbb', fontSize: 52, width: 760, height: 130 });
+shopSign.position.set(0, 3.62, 6.52); shopSign.scale.set(4.8, 0.9, 1); shopSign.userData.billboard=true; world.add(shopSign);
 const ownShopSign = labelSprite('دكانك الخاص · إدارة وبيع البضاعة', { bg:'#245442ee', color:'#e6ffbb', fontSize:30, width:650, height:88 });
 ownShopSign.position.set(0,2.52,7.95);ownShopSign.scale.set(3.2,.44,1);ownShopSign.userData.billboard=true;world.add(ownShopSign);
 // Interior ceiling trim and lights; no full ceiling so camera can see the scene.
@@ -552,7 +552,7 @@ function buildHouse(x, z, width, depth, wallColor, roofColor, type = 'home') {
     box(group, 'storefront awning', x, 2.65, frontZ + .55, width*.8, .18, 1.1, mat(`awning ${x}`, names[1]));
     box(group, 'street shop sign board', x, 3.23, frontZ + .075, width*.78, .68, .14, mat(`street shop sign ${x}`, names[1]));
     const shopNameSign = labelSprite(names[0], { bg:names[1], color:'#fff8e8', fontSize:39, width:480, height:100 });
-    shopNameSign.position.set(x,3.24,frontZ-.015);shopNameSign.scale.set(Math.min(2.7,width*.29),.52,1);shopNameSign.userData.billboard=true;group.add(shopNameSign);
+    shopNameSign.position.set(x,3.24,frontZ+.24);shopNameSign.scale.set(Math.min(2.7,width*.29),.52,1);shopNameSign.userData.billboard=true;group.add(shopNameSign);
   }
   return group;
 }
