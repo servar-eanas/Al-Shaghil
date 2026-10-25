@@ -90,7 +90,7 @@ function cleanName(value) {
   const name = String(value || 'لاعب جديد').replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 18);
   return name || 'لاعب جديد';
 }
-function publicPlayer(p, room = null) { return { id: p.id, name: p.name, x: p.x, z: p.z, rot: p.rot, voiceReady: !!p.voiceReady, color: p.color, heldItem: p.heldItem || null, job: JOB_IDS.has(p.job) ? p.job : 'unassigned', wanted: !!p.wanted, driving: !!p.driving, isHost: room ? room.hostId === p.id : !!p.isHost }; }
+function publicPlayer(p, room = null) { return { id: p.id, name: p.name, x: p.x, z: p.z, rot: p.rot, jumpY: Math.max(0,Math.min(2.5,Number(p.jumpY)||0)), voiceReady: !!p.voiceReady, color: p.color, heldItem: p.heldItem || null, job: JOB_IDS.has(p.job) ? p.job : 'unassigned', wanted: !!p.wanted, driving: !!p.driving, isHost: room ? room.hostId === p.id : !!p.isHost }; }
 function getState(room) { return { ...room.data, cart: [...(room.data.cart || [])], upgrades: { ...(room.data.upgrades || {}) }, inventory: Object.fromEntries(Object.entries(room.data.inventory).map(([k,v]) => [k, { ...v, shelfSlots: [...(v.shelfSlots || [])] }])) }; }
 function getPlayers(room, exceptId = null) { return [...room.players.values()].filter(p => p.id !== exceptId).map(p => publicPlayer(p, room)); }
 function getAllRoomPlayers(room) { return [...room.players.values()].map(p => publicPlayer(p, room)); }
@@ -240,6 +240,7 @@ io.on('connection', socket => {
       p.x = Math.max(-96, Math.min(96, Number(payload.x) || 0));
       p.z = Math.max(-86, Math.min(90, Number(payload.z) || 0));
       p.rot = Number(payload.rot) || 0;
+      p.jumpY = Math.max(0,Math.min(2.5,Number(payload.jumpY)||0));
     }
     socket.to(code).volatile.emit('player:moved', { ...publicPlayer(p, room), x: p.x, z: p.z, rot: p.rot, heldItem: p.heldItem || null });
   });
@@ -407,6 +408,18 @@ io.on('connection', socket => {
     broadcastState(code, room);
     const message = open ? 'فتح منشئ الغرفة الدكان.' : 'أغلق منشئ الغرفة الدكان.';
     io.to(code).emit('room:system',{text:message}); ack({ok:true,message});
+  });
+
+  socket.on('home:sleep', (_payload = {}, ack = () => {}) => {
+    const code=socket.data.roomCode,room=rooms.get(code),actor=room?.players.get(socket.id);
+    if(!room||!actor)return ack({ok:false,error:'لا توجد غرفة نشطة.'});
+    if(room.hostId!==socket.id)return ack({ok:false,error:'منشئ الغرفة فقط يستطيع تقديم الوقت في الغرفة الجماعية.'});
+    if(Math.hypot(actor.x+17.4,actor.z-37.2)>4.2)return ack({ok:false,error:'اقترب من بيتك وعلامة السرير قبل النوم.'});
+    room.data.day=(Number(room.data.day)||1)+1;room.data.gameMinutes=360;room.data.storeOpen=false;room.data.storeManualOverride=null;
+    broadcastState(code,room);
+    io.to(code).emit('room:clock',{gameMinutes:360,day:room.data.day,storeOpen:false,storeManualOverride:null});
+    const message='نمت في بيتك؛ يوم جديد والساعة 06:00 صباحاً.';
+    io.to(code).emit('room:system',{text:message});ack({ok:true,message,state:getState(room),gameMinutes:360,day:room.data.day});
   });
 
   socket.on('store:schedule', (_payload = {}, ack = () => {}) => {
