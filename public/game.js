@@ -1349,12 +1349,15 @@ function updateJobGuide(state = gameState, force = false) {
   if(currentJob==='shopkeeper') {
     const shelfReady=itemKeys.some(key=>!!state.fixtures?.shelves?.[key]);
     const anyGoods=itemKeys.some(key=>(Number(state.inventory?.[key]?.stock)||0)+(Number(state.inventory?.[key]?.shelf)||0)>0);
-    if(!state.fixtures?.computer)text.textContent='افتح كتالوج التجهيزات B واشترِ حاسوب الإدارة بـ$15 قبل طلب البضاعة.';
+    const waterOnShelf=Number(state.inventory?.water?.shelf)||0;
+    if(heldItem&&state.fixtures?.shelves?.[heldItem])text.textContent=`القطعة بإيدك: اتبع العلامة الخضراء إلى رف ${state.inventory?.[heldItem]?.name||''} واضغط E لوضعها.`;
+    else if(!state.fixtures?.computer)text.textContent='افتح كتالوج التجهيزات B واشترِ حاسوب الإدارة بـ$15 قبل طلب البضاعة.';
     else if(!shelfReady)text.textContent='افتح كتالوج التجهيزات B، اختر صنفاً ثم اشترِ رفّه بـ$25. بعدها اطلب البضاعة من لوحة المتجر.';
-    else if(!anyGoods)text.textContent='اختر صنفاً من القائمة ثم اضغط «شراء بضاعة للمخزن». خذ القطع من المخزن وضعها على الرف المطابق.';
-    else if(!state.fixtures?.register)text.textContent='هذا دكانك الخاص. خذ عبوة من صندوق «مخزون المياه» بزر E، وضعها على رف المياه بزر E. بعد تعبئة الرف، افتح كتالوج B واشترِ الكاشير بـ$20. الزبائن لن يشتروا قبل تركيب الكاشير.';
+    else if(!anyGoods)text.textContent='اختر صنفاً من القائمة ثم اضغط «شراء بضاعة للمخزن». بعدها اتبع العلامة الخضراء إلى صندوق المخزون وخذ القطع وضعها على الرف المطابق.';
+    else if(!state.fixtures?.register&&waterOnShelf<3)text.textContent='هذا دكانك الخاص. اتبع العلامة الخضراء إلى مخزون المياه، خذ عبوة بـE ثم اتبعها إلى رف المياه وضعها بـE. كرر حتى يمتلئ الرف بثلاث عبوات، ثم اشترِ الكاشير بـ$20 من كتالوج B.';
+    else if(!state.fixtures?.register)text.textContent='ممتاز، رف المياه جاهز. افتح كتالوج التجهيزات B واشترِ الكاشير بـ$20 حتى يبدأ البيع للزبائن.';
     else if(!state.storeOpen)text.textContent='الكاشير جاهز لكن الدكان مغلق. افتحه من زر «فتح الدكان» في لوحة الإدارة ليبدأ الزبائن بالشراء.';
-    else text.textContent='دكانك جاهز للبيع: خذ البضاعة من المخزون وضعها على الرف الصحيح. الزبائن يتحركون إلى الرف ويشترون تلقائياً عند وجود بضاعة وكاشير. راقب الرصيد والمخزون؛ دخل الدكان يأتي من المبيعات الفعلية.';
+    else text.textContent='دكانك جاهز للبيع. اتبع العلامة الخضراء لتعبئة الرف إذا نقصت البضاعة، ثم راقب الكاشير والزبائن؛ المبيعات الفعلية تزيد رصيد الدكان.';
     return;
   }
   const flow=JOB_WORKFLOWS[currentJob];
@@ -2137,6 +2140,17 @@ for(const target of targets.filter(t=>t.type==='jobTask')) {
   const ring=new THREE.Mesh(new THREE.RingGeometry(.5,.72,28),new THREE.MeshBasicMaterial({color:0x7cffba,transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=.07;beacon.add(ring);
   beacon.position.set(target.x,0,target.z);beacon.visible=false;scene.add(beacon);target.beacon=beacon;
 }
+const shopkeeperWaypointMarker=labelSprite('هدف دكانك',{bg:'#245442ee',color:'#e6ffbb',fontSize:30,width:450,height:90});shopkeeperWaypointMarker.scale.set(2.45,.43,1);shopkeeperWaypointMarker.userData.billboard=true;shopkeeperWaypointMarker.visible=false;scene.add(shopkeeperWaypointMarker);
+const shopkeeperWaypointBeacon=new THREE.Group();
+const shopWaypointBeam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.48,2.6,14,1,true),new THREE.MeshBasicMaterial({color:0x8bd66b,transparent:true,opacity:.46,depthWrite:false,side:THREE.DoubleSide}));shopWaypointBeam.position.y=1.3;shopkeeperWaypointBeacon.add(shopWaypointBeam);
+const shopWaypointRing=new THREE.Mesh(new THREE.RingGeometry(.5,.72,28),new THREE.MeshBasicMaterial({color:0xc1f67a,transparent:true,opacity:.94,side:THREE.DoubleSide,depthWrite:false}));shopWaypointRing.rotation.x=-Math.PI/2;shopWaypointRing.position.y=.07;shopkeeperWaypointBeacon.add(shopWaypointRing);shopkeeperWaypointBeacon.visible=false;scene.add(shopkeeperWaypointBeacon);
+function getShopkeeperWaypoint(state=gameState){
+  if(!state?.fixtures?.computer)return null;
+  if(heldItem){const index=itemKeys.indexOf(heldItem);if(index>=0&&state.fixtures?.shelves?.[heldItem])return {label:`ضع ${state.inventory?.[heldItem]?.name||'القطعة'} على الرف`,x:shelfXs[index],z:-.55};}
+  for(const key of itemKeys){if(!state.fixtures?.shelves?.[key])continue;const item=state.inventory?.[key];if((Number(item?.stock)||0)>0&&(Number(item?.shelf)||0)<3){const target=targets.find(t=>t.type==='stock'&&t.product===key);if(target)return {label:`خذ ${item?.name||'البضاعة'} من المخزن`,x:target.x,z:target.z};}}
+  if(!state.fixtures?.register||!state.storeOpen)return null;
+  return {label:'نقطة الكاشير · راقب البيع',x:-5.45,z:-5.15};
+}
 function claimShoppingCart() {
   if (!gameState.fixtures?.cart) return toast('العربة غير موجودة بعد؛ اشترها من كتالوج تجهيزات الدكان.');
   if (heldItem) return toast('ضع المنتج أولاً، ثم أمسك العربة.');
@@ -2236,6 +2250,10 @@ function updateNearestInteraction() {
     t.marker.visible=!!active&&activeMarker;t.marker.position.set(t.x,2.65,t.z);
     if(t.beacon){t.beacon.visible=!!active&&activeMarker;t.beacon.position.set(t.x,0,t.z);const pulse=1+Math.sin(performance.now()*.0045)*.06;t.beacon.scale.set(pulse,1,pulse);}
   }
+  const ownerWay=currentJob==='shopkeeper'?getShopkeeperWaypoint(gameState):null;
+  const ownerWayVisible=!!active&&!!ownerWay;
+  shopkeeperWaypointMarker.visible=ownerWayVisible;shopkeeperWaypointBeacon.visible=ownerWayVisible;
+  if(ownerWayVisible){shopkeeperWaypointMarker.position.set(ownerWay.x,2.65,ownerWay.z);shopkeeperWaypointMarker.material.map.needsUpdate=true;const pulse=1+Math.sin(performance.now()*.004)*.05;shopkeeperWaypointBeacon.position.set(ownerWay.x,0,ownerWay.z);shopkeeperWaypointBeacon.scale.set(pulse,1,pulse);shopkeeperWaypointMarker.scale.set(2.45,.43,1);}
   if (nearest) {
     $('interactionText').textContent = interactionLabel(nearest);
     const keyEl = $('interactionKey');
