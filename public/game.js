@@ -96,6 +96,7 @@ const playerPosition = new THREE.Vector3(0, 0, 4.1);
 let jumpHeight = 0;
 let jumpVelocity = 0;
 let jumpQueued = false;
+let insideHome = false;
 let socket = null;
 let pendingRoomAction = null;
 let selfPlayerId = null;
@@ -580,17 +581,55 @@ function buildHouse(x, z, width, depth, wallColor, roofColor, type = 'home') {
   }
   return group;
 }
+function buildPlayerHome(x,z) {
+  const group=new THREE.Group();group.name='player-home-interior';world.add(group);
+  box(group,'home foundation',x,-.01,z,9.35,.25,10.35,mat('home foundation','#a99c81',.92),{castShadow:false});
+  box(group,'home floor',x,.15,z,8.95,.14,9.95,mat('home floor','#c6bba4',.9),{castShadow:false});
+  const plaster=mat('player home plaster','#d9cfb9',.94);
+  const trim=mat('player home trim','#8c6b4a',.86);
+  box(group,'home back wall',x,1.65,z-4.88,8.95,3.25,.22,plaster);
+  box(group,'home left wall',x-4.38,1.65,z,.22,3.25,9.95,plaster);
+  box(group,'home right wall',x+4.38,1.65,z,.22,3.25,9.95,plaster);
+  box(group,'home front wall left',x-2.85,1.58,z+4.88,3.25,3.1,.22,plaster);
+  box(group,'home front wall right',x+2.85,1.58,z+4.88,3.25,3.1,.22,plaster);
+  box(group,'home doorway lintel',x,3.03,z+4.88,2.55,.42,.26,trim);
+  for(const xx of [x-3.55,x+3.55])box(group,'home corner trim',xx,1.8,z+4.82,.12,3.35,.13,trim);
+  box(group,'home roof back beam',x,3.4,z-4.83,9.2,.18,.28,trim);
+  box(group,'home roof left beam',x-4.35,3.4,z,.28,.18,9.7,trim);
+  box(group,'home roof right beam',x+4.35,3.4,z,.28,.18,9.7,trim);
+  box(group,'home awning',x,3.38,z+5.1,3.15,.16,1.0,mat('home awning','#45785e',.8));
+  const openDoor=box(group,'home open door',x-1.25,1.1,z+4.83,1.05,2.2,.13,mat('home wooden door','#76533a',.88),{rotation:[0,.78,0]});
+  box(group,'home door knob',x-.88,1.1,z+4.55,.065,.065,.06,mat('home door knob','#d8bb70',.4,{metalness:.4}));
+  for(const xx of [x-3,x+3]) {
+    box(group,'home front window',xx,2.15,z+4.91,1.15,.88,.07,mat('home window','#7ca8a8',.28,{emissive:'#efc77a',emissiveIntensity:.03}));
+    box(group,'home window mullion',xx,2.15,z+4.96,.055,.9,.04,trim);
+  }
+  // A visible bed and nightstand make this a place to live, not just a teleport point.
+  box(group,'home bed frame',x+2.05,.35,z-.6,1.95,.34,2.75,trim);
+  box(group,'home mattress',x+2.05,.58,z-.6,1.83,.22,2.62,mat('home mattress','#e8dfcd',.95));
+  box(group,'home blanket',x+2.05,.72,z+.05,1.84,.12,1.35,mat('home blanket','#527b70',.92));
+  box(group,'home pillow',x+2.05,.76,z-1.55,1.12,.16,.48,mat('home pillow','#f3eee0',.94));
+  box(group,'home headboard',x+2.05,.82,z-2.05,2.0,1.35,.16,trim);
+  box(group,'home nightstand',x+.45,.48,z-1.5,.72,.85,.72,mat('home nightstand','#916d4c',.9));
+  box(group,'home lamp base',x+.45,.94,z-1.5,.25,.08,.25,mat('home lamp base','#c9b47b',.65));
+  cylinder(group,'home lamp stem',x+.45,1.15,z-1.5,.035,.035,.4,mat('home lamp stem','#d8c38c',.55),8);
+  box(group,'home lamp shade',x+.45,1.38,z-1.5,.38,.32,.38,mat('home lamp shade','#f3dda3',.72,{emissive:'#d9b65d',emissiveIntensity:.12}));
+  const rug=box(group,'home rug',x+.55,.245,z+.95,3.15,.035,2.7,mat('home rug','#8a5745',.98),{castShadow:false});
+  box(group,'home wardrobe',x-3.1,1.28,z-2.0,1.35,2.4,.78,mat('home wardrobe','#8a6548',.88));
+  for(const dx of [-.28,.28])cylinder(group,'home wardrobe handle',x-3.1+dx,1.3,z-1.58,.035,.035,.16,mat('home wardrobe handle','#d6bd86',.45),8);
+  return group;
+}
 buildHouse(-15, 3, 10, 11, '#d5c6a9', '#9a8970', 'home');
 buildHouse(15, 3.5, 10, 11, '#c5c9b7', '#b58c6b', 'home');
 buildHouse(-27, 2, 9, 10, '#c4ae90', '#7f8171', 'shop');
 buildHouse(27, 2, 9, 10, '#c7baa2', '#87765f', 'shop');
-buildHouse(-15, 30, 9, 10, '#d3c7af', '#998a76', 'home');
+buildPlayerHome(-15,30);
 // Clearly mark the player's own home and its sleep interaction.
 box(world,'player home sign board',-15,3.18,35.10,3.7,.66,.13,mat('player home sign','#315b49',.72));
 const playerHomeSign=labelSprite('بيتك الخاص',{bg:'#315b49',color:'#f1f8dc',fontSize:44,width:460,height:100});
 playerHomeSign.position.set(-15,3.19,35.19);playerHomeSign.scale.set(2.25,.50,1);world.add(playerHomeSign);
-const homeSleepMarker=labelSprite('🛏 بيتك · اضغط E للنوم',{bg:'#1d4d3fee',color:'#f0ffd4',fontSize:31,width:540,height:96});
-homeSleepMarker.position.set(-17.4,2.6,38.05);homeSleepMarker.scale.set(2.5,.44,1);homeSleepMarker.userData.billboard=true;world.add(homeSleepMarker);
+const homeSleepMarker=labelSprite('🛏 السرير · اضغط E للنوم',{bg:'#1d4d3fee',color:'#f0ffd4',fontSize:31,width:540,height:96});
+homeSleepMarker.position.set(-12.8,2.5,28.0);homeSleepMarker.scale.set(2.4,.42,1);homeSleepMarker.userData.billboard=true;homeSleepMarker.visible=false;world.add(homeSleepMarker);
 buildHouse(15, 31, 10, 11, '#d2c6ab', '#9b7a62', 'home');
 buildHouse(-90, -7, 10, 10, '#c4b394', '#8a9a85', 'shop');
 buildHouse(90, -7, 10, 10, '#c7bdab', '#98836a', 'shop');
@@ -1151,6 +1190,7 @@ function renderState(state) {
   updateJobGuide(state, true);
 }
 function enterWorld(mode) {
+  insideHome=false;
   currentMode = mode;
   active = true; paused = false;
   if (soloGameMinuteTimer) clearInterval(soloGameMinuteTimer);
@@ -2089,7 +2129,12 @@ cartBlocker = addBlocker(6.35, 4.05, 0.62, 0.70, 'shopping-cart'); cartBlocker.a
 // Buildings in the street are solid; collision bounds match their visible footprints.
 addBlocker(-15, 3, 5.15, 5.65, 'home-west'); addBlocker(15, 3.5, 5.15, 5.65, 'home-east');
 addBlocker(-27, 2, 4.65, 5.15, 'market-west'); addBlocker(27, 2, 4.65, 5.15, 'market-east');
-addBlocker(-15, 30, 4.65, 5.15, 'home-northwest'); addBlocker(15, 31, 5.15, 5.65, 'home-northeast');
+addBlocker(-15,25.0,4.5,.16,'player-home-back');
+addBlocker(-19.35,30,.16,5.0,'player-home-left');
+addBlocker(-10.65,30,.16,5.0,'player-home-right');
+addBlocker(-17.85,35,1.5,.16,'player-home-front-left');
+addBlocker(-12.15,35,1.5,.16,'player-home-front-right');
+addBlocker(-12.95,29.4,.78,1.15,'player-home-bed'); addBlocker(15, 31, 5.15, 5.65, 'home-northeast');
 addBlocker(-90,-7,5.25,5.25,'market-far-west');addBlocker(90,-7,5.25,5.25,'market-far-east');
 addBlocker(-90,73,5.25,5.75,'home-far-northwest');addBlocker(90,73,5.25,5.75,'home-far-northeast');
 for (const lx of [-90,-80,-50,-40,-31,-22,-9,9,22,31,40,50,80,90]) addBlocker(lx, 14.2, 0.14, 0.14, `street-lamp-${lx}`);
@@ -2129,7 +2174,9 @@ const targets = [
   { id:'shelf-milk', label:'رف الألبان', x:5.02, z:-0.55, type:'shelf', product:'milk' },
   { id:'shopping-cart', label:'عربة التسوق', x:6.35, z:4.05, type:'cart' },
   { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-54, z:43.55, type:'vehicle', job:'police' },
-  { id:'player-home', label:'بيتك الخاص — النوم وتغيير اليوم', x:-17.4, z:37.2, type:'home' },
+  { id:'player-home-door', label:'باب بيتك — ادخل للغرفة', x:-15, z:37.15, type:'homeDoor' },
+  { id:'player-home-bed', label:'السرير — النوم حتى الصباح', x:-14.8, z:31.35, type:'homeBed' },
+  { id:'player-home-exit', label:'باب البيت — الخروج للحارة', x:-15, z:34.1, type:'homeExit' },
   { id:'job-mechanic-0', label:'فحص السيارة', x:-59.65, z:10.15, type:'jobTask', job:'mechanic', stepIndex:0, icon:'🔧' },
   { id:'job-mechanic-1', label:'خزانة أدوات الورشة', x:-52.35, z:8.45, type:'jobTask', job:'mechanic', stepIndex:1, icon:'🧰' },
   { id:'job-mechanic-2', label:'اختبار السيارة', x:-54.35, z:10.15, type:'jobTask', job:'mechanic', stepIndex:2, icon:'🚗' },
@@ -2230,7 +2277,9 @@ function interactionLabel(target) {
     return playerCart.length ? `اضغط E للمحاسبة · إجمالي ${moneyFmt(cartTotal())}` : (heldItem ? 'ضع المنتج في العربة أو على الرف أولاً' : `اضغط E عند الكاشير لبيع قطعة ${gameState.inventory[selectedProduct]?.name || 'المنتج'}`);
   }
   if (target.type === 'order') return 'الشراء من زر «شراء بضاعة للمخزن» في لوحة المتجر';
-  if (target.type === 'home') return 'اضغط E للنوم في بيتك وتجاوز الوقت إلى الساعة 06:00 صباحاً';
+  if (target.type === 'homeDoor') return 'اضغط E للدخول إلى بيتك';
+  if (target.type === 'homeBed') return 'اضغط E على السرير للنوم وتجاوز الوقت إلى 06:00 صباحاً';
+  if (target.type === 'homeExit') return 'اضغط E للخروج من بيتك إلى الحارة';
   if (target.type === 'jobTask') { const flow=JOB_WORKFLOWS[target.job]||[];const step=flow[target.stepIndex];return step?`مهمة ${target.stepIndex+1}/${flow.length}: ${step.title} — اضغط E لإنجاز الخطوة`:`موقع عمل ${(JOBS[target.job]||JOBS.unassigned).label}`; }
   return target.label;
 }
@@ -2240,7 +2289,8 @@ function updateNearestInteraction() {
   const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y = 0;
   if (forward.lengthSq() > 0.0001) forward.normalize();
   for (const t of targets) {
-    if(t.type==='home' && (currentMode!=='solo' && currentMode!=='multi'))continue;
+    if((t.type==='homeDoor'&&insideHome)||((t.type==='homeBed'||t.type==='homeExit')&&!insideHome))continue;
+    if((t.type==='homeDoor'||t.type==='homeBed'||t.type==='homeExit')&&(currentMode!=='solo'&&currentMode!=='multi'))continue;
     if (t.type === 'jobTask') {
       if(t.job!==currentJob)continue;
       const wantedStep=jobWorkSession?.job===currentJob?jobWorkSession.step:0;
@@ -2259,10 +2309,11 @@ function updateNearestInteraction() {
     const d = Math.hypot(dx, dz);
     if (d >= min) continue;
     const facing = d > 0.001 ? (dx * forward.x + dz * forward.z) / d : 1;
-    if (facing < 0.12 && t.type !== 'jobTask' && t.type !== 'home' && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Job stations are forgiving: walk into the marked area and press E without pixel-perfect aiming.
+    if (facing < 0.12 && t.type !== 'jobTask' && !['homeDoor','homeBed','homeExit'].includes(t.type) && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Job stations are forgiving: walk into the marked area and press E without pixel-perfect aiming.
     nearest = t; min = d;
   }
   nearestInteraction = nearest;
+  if(homeSleepMarker)homeSleepMarker.visible=!!active&&insideHome;
   const stage=jobWorkSession?.job===currentJob?jobWorkSession.step:0;
   for(const t of targets.filter(item=>item.type==='jobTask')) {
     if(!t.marker)continue;
@@ -2294,7 +2345,18 @@ function nearestVisibleSlot(productKey) {
   const pos = new THREE.Vector3(); visible[0].getWorldPosition(pos);
   return distanceXZ(playerPosition.x, playerPosition.z, pos.x, pos.z) < 3.2 ? visible[0].userData.productSlot : null;
 }
+function enterHome() {
+  if(insideHome)return;
+  insideHome=true;playerPosition.set(-15,0,34.0);yaw=0;pitch=0;updateCameraPose();toast('دخلت بيتك 🏠 اقترب من السرير واضغط E للنوم.');
+  if(currentMode==='multi'&&socket?.connected)socket.volatile.emit('player:move',{x:playerPosition.x,z:playerPosition.z,rot:yaw,job:currentJob,driving:false,jumpY:0});
+}
+function exitHome() {
+  if(!insideHome)return;
+  insideHome=false;playerPosition.set(-15,0,37.2);yaw=Math.PI;pitch=0;updateCameraPose();toast('طلعت من بيتك إلى الحارة.');
+  if(currentMode==='multi'&&socket?.connected)socket.volatile.emit('player:move',{x:playerPosition.x,z:playerPosition.z,rot:yaw,job:currentJob,driving:false,jumpY:0});
+}
 function sleepAtHome() {
+  if(!insideHome)return toast('ادخل بيتك أولاً، ثم اقترب من السرير.');
   if(currentMode==='multi') {
     if(!socket?.connected)return toast('اتصال الغرفة غير متاح.');
     socket.emit('home:sleep',{},result=>{if(!result?.ok){toast(result?.error||'تعذّر النوم الآن.');return;}if(result.state)renderState(result.state);if(result.gameMinutes!==undefined)updateClockUi({gameMinutes:result.gameMinutes,day:result.day,storeOpen:false});toast(result.message||'نمت في بيتك وصار الوقت 06:00 صباحاً.');});return;
@@ -2313,7 +2375,9 @@ function interact() {
   if (!active || paused) return;
   if (!nearestInteraction) return toast('اقترب من الحاسوب أو الرف أو العربة أو الكاشير أو بيتك للتفاعل.', 1800);
   const target = nearestInteraction;
-  if(target.type==='home'){sleepAtHome();return;}
+  if(target.type==='homeDoor'){enterHome();return;}
+  if(target.type==='homeExit'){exitHome();return;}
+  if(target.type==='homeBed'){sleepAtHome();return;}
   if (target.type === 'jobTask') { performJobTask(target.job,target); return; }
   if (target.type === 'vehicle') { enterPoliceVehicle(); return; }
   if (target.type === 'order') { openPaymentModal('order', selectedProduct); return; }
