@@ -414,7 +414,7 @@ io.on('connection', socket => {
     const code=socket.data.roomCode,room=rooms.get(code),actor=room?.players.get(socket.id);
     if(!room||!actor)return ack({ok:false,error:'لا توجد غرفة نشطة.'});
     if(room.hostId!==socket.id)return ack({ok:false,error:'منشئ الغرفة فقط يستطيع تقديم الوقت في الغرفة الجماعية.'});
-    if(Math.hypot(actor.x+17.4,actor.z-37.2)>4.2)return ack({ok:false,error:'اقترب من بيتك وعلامة السرير قبل النوم.'});
+    if(Math.hypot(actor.x+14.8,actor.z-31.35)>3.8)return ack({ok:false,error:'اقترب من السرير داخل بيتك قبل النوم.'});
     room.data.day=(Number(room.data.day)||1)+1;room.data.gameMinutes=360;room.data.storeOpen=false;room.data.storeManualOverride=null;
     broadcastState(code,room);
     io.to(code).emit('room:clock',{gameMinutes:360,day:room.data.day,storeOpen:false,storeManualOverride:null});
