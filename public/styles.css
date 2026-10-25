@@ -172,3 +172,10 @@
 /* Persistent job objective: remains visible when the business sidebar is hidden. */
 .floatingJobGuide{position:absolute;z-index:3;top:108px;right:22px;width:min(330px,calc(100% - 44px));max-height:24vh;overflow:auto;box-shadow:0 14px 32px rgba(0,0,0,.28);backdrop-filter:blur(13px);pointer-events:none}
 @media(max-width:660px){.floatingJobGuide{top:164px;right:9px;left:9px;width:auto;max-height:104px;padding:8px 10px}.floatingJobGuide b{font-size:9px}.floatingJobGuide p{font-size:8px;line-height:1.6}}
+
+
+/* Job choices explain the actual task, with the uniform kept secondary. */
+.jobOptionInfo .jobUniform{font-size:8px;line-height:1.45;opacity:.76}
+.jobOption{align-items:flex-start}
+.jobOptionCheck{align-self:center}
+@media(max-width:660px){.jobOptionInfo small{font-size:9px;line-height:1.55}.jobOptionInfo .jobUniform{font-size:8px}}
