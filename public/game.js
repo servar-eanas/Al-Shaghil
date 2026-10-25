@@ -1592,7 +1592,7 @@ function ensureSocket() {
   socket.on('room:player-updated', p => {
     updateRemoteAvatar(p);
     if (p?.id === selfPlayerId) {
-      const nextJob=p.job||'unassigned';if(nextJob!==currentJob)jobWorkSession=null;currentJob = nextJob;
+      const nextJob=p.job||'unassigned';if(nextJob!==currentJob){jobWorkSession=null;setJobCarryPackage(false);}currentJob = nextJob;
       $('jobValue').textContent = `${(JOBS[currentJob] || JOBS.unassigned).icon} ${(JOBS[currentJob] || JOBS.unassigned).label}`;
       isDriving = !!p.driving; $('vehicleExit').classList.toggle('hidden', !isDriving);
       refreshSelfAvatar();
@@ -1601,7 +1601,7 @@ function ensureSocket() {
   socket.on('room:players', players => {
     roomPlayers = Array.isArray(players) ? players : [];
     const me = roomPlayers.find(p => p.id === selfPlayerId);
-    if (me) { const nextJob=me.job||'unassigned';if(nextJob!==currentJob)jobWorkSession=null;isRoomHost = !!me.isHost; roomHostId = roomPlayers.find(p => p.isHost)?.id || roomHostId; currentJob = nextJob; refreshSelfAvatar(); }
+    if (me) { const nextJob=me.job||'unassigned';if(nextJob!==currentJob){jobWorkSession=null;setJobCarryPackage(false);}isRoomHost = !!me.isHost; roomHostId = roomPlayers.find(p => p.isHost)?.id || roomHostId; currentJob = nextJob; refreshSelfAvatar(); }
     renderJobAssignments(); updateStoreButtonUi(gameState);
   });
   socket.on('vehicle:state', data => {
