@@ -523,6 +523,15 @@ const stolenGoodsCrate = new THREE.Group(); world.add(stolenGoodsCrate);
 box(stolenGoodsCrate,'electronics shipment crate',13,.46,22.1,1.25,.9,.95,mat('electronics shipment crate','#ad824d',.96));
 box(stolenGoodsCrate,'shipment label',13,1.0,21.6,.8,.24,.035,mat('shipment label','#e7dfc9',.86));
 const shipmentTag=labelSprite('شحنة أجهزة',{bg:'#4e3f2b',color:'#fff3d9',fontSize:32,width:310,height:78}); shipmentTag.position.set(13,1.6,22.05); shipmentTag.scale.set(1.12,.28,1); shipmentTag.userData.billboard=true; stolenGoodsCrate.add(shipmentTag);
+// The parcel becomes a visible carried prop between pickup and delivery / escape.
+const jobCarryPackage=new THREE.Group();jobCarryPackage.name='carried job package';
+box(jobCarryPackage,'carried parcel box',0,.76,0,.62,.55,.58,mat('carried parcel cardboard','#b78b57',.95));
+box(jobCarryPackage,'carried parcel tape',0,1.04,0,.1,.012,.59,mat('carried parcel tape','#f0d9a5',.8));
+const deliveryParcelTag=labelSprite('طلب توصيل',{bg:'#3f694e',color:'#fff5d9',fontSize:28,width:300,height:80});deliveryParcelTag.position.set(0,1.12,.295);deliveryParcelTag.scale.set(.78,.21,1);jobCarryPackage.add(deliveryParcelTag);
+const stolenParcelTag=labelSprite('شحنة مسروقة',{bg:'#663b2c',color:'#fff0ce',fontSize:28,width:300,height:80});stolenParcelTag.position.set(0,1.12,.295);stolenParcelTag.scale.set(.78,.21,1);jobCarryPackage.add(stolenParcelTag);stolenParcelTag.visible=false;
+jobCarryPackage.visible=false;world.add(jobCarryPackage);
+function setJobCarryPackage(show,kind='delivery'){jobCarryPackage.visible=!!show;deliveryParcelTag.visible=kind==='delivery';stolenParcelTag.visible=kind==='criminal';jobCarryPackage.userData.kind=kind;}
+function updateJobCarryPackage(){if(!jobCarryPackage.visible||!active||isDriving)return;const sideX=Math.cos(yaw)*.34,sideZ=-Math.sin(yaw)*.34;jobCarryPackage.position.set(playerPosition.x+sideX,0,playerPosition.z+sideZ);jobCarryPackage.rotation.y=yaw;}
 // Static station collision footprints keep the avatar out of counters and walls.
 const stationBlockers = [
   [-57,10,'mechanic-station'],[55,10,'it-station'],[73,10,'electronics-station'],[-63,34,'police-station'],[-42,34,'delivery-station']
@@ -1305,7 +1314,7 @@ function clearRemotePlayers() {
   peerConnections.clear(); voiceStates.clear();
 }
 function appendJoinResult(result) {
-  jobWorkSession=null;
+  jobWorkSession=null;setJobCarryPackage(false);
   if (!result?.ok) { toast(result?.error || 'تعذّر الدخول للغرفة.'); return false; }
   roomCode = result.code;
   selfPlayerId = socket?.id || result.self?.id || null;
@@ -1360,7 +1369,7 @@ function updateJobGuide(state = gameState, force = false) {
 function setSoloJob(job) {
   if (!JOBS[job] || job === 'unassigned') return;
   if (currentMode === 'multi') return toast('في اللعب الجماعي، منشئ الغرفة هو الذي يوزّع الوظائف.');
-  currentJob = job; jobWorkSession = null;
+  currentJob = job; jobWorkSession = null; setJobCarryPackage(false);
   try { localStorage.setItem(soloJobStorageKey, job); } catch {}
   $('jobValue').textContent = `${JOBS[job].icon} ${JOBS[job].label}`;
   refreshSelfAvatar(); renderJobAssignments(); updateJobGuide(gameState, true);
@@ -1499,9 +1508,10 @@ function pulseJobObject(name) {
 function showJobWorkEffect(job,step) {
   const visuals={mechanic:['repair vehicle body','tool cabinet','repair vehicle body'],it:['IT station display','IT station keyboard','IT station display'],electronics:['device under repair','soldering station','device under repair'],delivery:['delivery pallet crate','delivery sorting table','delivery parcel'],police:['police noticeboard','police service desk'],criminal:['electronics shipment crate','shipment label']};
   const name=visuals[job]?.[step];if(name)pulseJobObject(name);
-  if(job==='delivery'&&step===0){const parcel=world.getObjectByName('delivery pallet crate');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}}
-  if(job==='delivery'&&step===2){const parcel=deliveryDropoff.getObjectByName('delivery dropoff parcel');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}}
-  if(job==='criminal'&&step===0){stolenGoodsCrate.visible=false;window.setTimeout(()=>{stolenGoodsCrate.visible=true;},25000);}
+  if(job==='delivery'&&step===0){const parcel=world.getObjectByName('delivery pallet crate');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}setJobCarryPackage(true,'delivery');}
+  if(job==='delivery'&&step===2){const parcel=deliveryDropoff.getObjectByName('delivery dropoff parcel');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}setJobCarryPackage(false,'delivery');}
+  if(job==='criminal'&&step===0){stolenGoodsCrate.visible=false;window.setTimeout(()=>{stolenGoodsCrate.visible=true;},25000);setJobCarryPackage(true,'criminal');}
+  if(job==='criminal'&&step===1)setJobCarryPackage(false,'criminal');
 }
 function finishCriminalUniform() {
   if(selfAvatar){scene.remove(selfAvatar);selfAvatar.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
@@ -2733,7 +2743,7 @@ let lastFrame=performance.now();
 function animate(now) {
   requestAnimationFrame(animate);
   const dt=Math.min(.04,(now-lastFrame)/1000); lastFrame=now;
-  updateMovement(dt); updateShoppingCart(dt); updateAmbient(dt,now/1000); updateDayNight(); updateNearestInteraction(); updateJobGuide();
+  updateMovement(dt); updateShoppingCart(dt); updateJobCarryPackage(); updateAmbient(dt,now/1000); updateDayNight(); updateNearestInteraction(); updateJobGuide();
   // Keep remote avatars readable as the camera moves.
   for (const avatar of remoteAvatars.values()) {
     animateAvatarModel(avatar,dt,performance.now()<(avatar.userData.remoteMoveUntil||0)&&!avatar.userData.driving,false);
