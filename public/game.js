@@ -1263,6 +1263,7 @@ function updateRemoteAvatar(player) {
   const oldX=avatar.position.x,oldZ=avatar.position.z;
   if (Number.isFinite(Number(player.x))) avatar.position.x = Number(player.x);
   if (Number.isFinite(Number(player.z))) avatar.position.z = Number(player.z);
+  avatar.position.y=THREE.MathUtils.clamp(Number(player.jumpY)||0,0,2.5);
   if(Math.hypot(avatar.position.x-oldX,avatar.position.z-oldZ)>.01)avatar.userData.remoteMoveUntil=performance.now()+180;
   if(Object.prototype.hasOwnProperty.call(player,'driving'))avatar.userData.driving=!!player.driving;
   if ((avatar.userData.job || 'unassigned') !== (player.job || 'unassigned') || !!avatar.userData.wanted !== !!player.wanted) {
@@ -2374,6 +2375,7 @@ function pickFocusedProduct() {
 }
 $('touchAction').addEventListener('click', interact);
 $('touchPickup').addEventListener('click', pickFocusedProduct);
+const touchJumpButton=$('touchJump');if(touchJumpButton)touchJumpButton.addEventListener('click',()=>{if(active&&!paused&&!isDriving&&jumpHeight<=.001)jumpQueued=true;});
 window.addEventListener('keydown', e => {
   const target=e.target;
   const typing=target instanceof HTMLElement&&(target.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(target.tagName));
@@ -2484,7 +2486,7 @@ function updateMovement(dt) {
   }
   updateCameraPose();
   if (currentMode==='multi' && socket?.connected && performance.now()-lastMoveEmit>45) {
-    lastMoveEmit=performance.now(); socket.volatile.emit('player:move',{x:playerPosition.x,z:playerPosition.z,rot:yaw,job:currentJob,driving:isDriving});
+    lastMoveEmit=performance.now(); socket.volatile.emit('player:move',{x:playerPosition.x,z:playerPosition.z,rot:yaw,job:currentJob,driving:isDriving,jumpY:jumpHeight});
   }
 }
 
