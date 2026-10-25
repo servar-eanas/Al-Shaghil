@@ -182,4 +182,4 @@
 
 
 /* Jump control for the mobile simulator */
-.touchJump{display:none;pointer-events:auto;position:absolute;bottom:94px;right:10px;width:54px;height:54px;border-radius:50%;background:rgba(116,166,226,.92);color:#122536;font:900 16px Manrope;box-shadow:0 4px 18px #0005;border:1px solid #c7e2ff;touch-action:manipulation}.touchJump small{font:600 9px "IBM Plex Sans Arabic";display:block}@media(max-width:660px){.touchJump{display:block}}
+.touchJump{display:none;pointer-events:auto;position:absolute;bottom:158px;right:10px;width:54px;height:54px;border-radius:50%;background:rgba(116,166,226,.92);color:#122536;font:900 16px Manrope;box-shadow:0 4px 18px #0005;border:1px solid #c7e2ff;touch-action:manipulation}.touchJump small{font:600 9px "IBM Plex Sans Arabic";display:block}@media(max-width:660px){.touchJump{display:block}}
