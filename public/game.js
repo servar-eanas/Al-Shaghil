@@ -1159,6 +1159,8 @@ function enterWorld(mode) {
   }
   $('entryScreen').classList.add('hidden'); $('pauseMenu').classList.add('hidden');
   setHudVisible(true);
+  // On narrow screens keep the objective visible and leave the map open by default.
+  if (window.matchMedia('(max-width:660px)').matches) setStorePanelVisible(false);
   $('modeLabel').textContent = mode === 'multi' ? `غرفة ${roomCode}` : 'عالم فردي محفوظ';
   $('viewLabel').textContent = cameraView === 'first' ? 'منظور أول' : 'منظور ثالث'; $('viewToggle').classList.toggle('active', cameraView === 'third');
   $('jobValue').textContent = `${(JOBS[currentJob] || JOBS.unassigned).icon} ${(JOBS[currentJob] || JOBS.unassigned).label}`;
