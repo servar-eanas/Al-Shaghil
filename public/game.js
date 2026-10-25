@@ -93,6 +93,9 @@ let soloGameMinuteTimer = null;
 let localJobCooldown = 0;
 let selfAvatar = null;
 const playerPosition = new THREE.Vector3(0, 0, 4.1);
+let jumpHeight = 0;
+let jumpVelocity = 0;
+let jumpQueued = false;
 let socket = null;
 let pendingRoomAction = null;
 let selfPlayerId = null;
@@ -582,6 +585,12 @@ buildHouse(15, 3.5, 10, 11, '#c5c9b7', '#b58c6b', 'home');
 buildHouse(-27, 2, 9, 10, '#c4ae90', '#7f8171', 'shop');
 buildHouse(27, 2, 9, 10, '#c7baa2', '#87765f', 'shop');
 buildHouse(-15, 30, 9, 10, '#d3c7af', '#998a76', 'home');
+// Clearly mark the player's own home and its sleep interaction.
+box(world,'player home sign board',-15,3.18,35.10,3.7,.66,.13,mat('player home sign','#315b49',.72));
+const playerHomeSign=labelSprite('بيتك الخاص',{bg:'#315b49',color:'#f1f8dc',fontSize:44,width:460,height:100});
+playerHomeSign.position.set(-15,3.19,35.19);playerHomeSign.scale.set(2.25,.50,1);world.add(playerHomeSign);
+const homeSleepMarker=labelSprite('🛏 بيتك · اضغط E للنوم',{bg:'#1d4d3fee',color:'#f0ffd4',fontSize:31,width:540,height:96});
+homeSleepMarker.position.set(-17.4,2.6,38.05);homeSleepMarker.scale.set(2.5,.44,1);homeSleepMarker.userData.billboard=true;world.add(homeSleepMarker);
 buildHouse(15, 31, 10, 11, '#d2c6ab', '#9b7a62', 'home');
 buildHouse(-90, -7, 10, 10, '#c4b394', '#8a9a85', 'shop');
 buildHouse(90, -7, 10, 10, '#c7bdab', '#98836a', 'shop');
@@ -867,17 +876,17 @@ function createFirstPersonHands() {
 createFirstPersonHands();
 
 function updateCameraPose() {
-  const px = playerPosition.x, pz = playerPosition.z;
-  if (selfAvatar) { selfAvatar.position.set(px, 0, pz); selfAvatar.rotation.y = yaw; selfAvatar.visible = active && cameraView === 'third' && !isDriving; }
+  const px = playerPosition.x, pz = playerPosition.z, py=Number(jumpHeight)||0;
+  if (selfAvatar) { selfAvatar.position.set(px, py, pz); selfAvatar.rotation.y = yaw; selfAvatar.visible = active && cameraView === 'third' && !isDriving; }
   firstPersonHands.visible = cameraView === 'first';
   if (heldVisual) heldVisual.visible = cameraView === 'first' && !!heldItem;
   if (cameraView === 'first') {
-    camera.position.set(px, (isDriving ? 1.30 : 1.65) + (isDriving ? 0 : Math.sin(elapsed) * 0.01), pz);
+    camera.position.set(px, py + (isDriving ? 1.30 : 1.65) + (isDriving ? 0 : Math.sin(elapsed) * 0.01), pz);
     camera.rotation.order = 'YXZ'; camera.rotation.set(pitch, yaw, 0, 'YXZ');
   } else {
     const back = 5.3;
-    camera.position.set(px + Math.sin(yaw) * back, 2.75 + Math.max(0, pitch) * 1.2, pz + Math.cos(yaw) * back);
-    const target = new THREE.Vector3(px - Math.sin(yaw) * 8, 1.25 - Math.tan(pitch) * 3.0, pz - Math.cos(yaw) * 8);
+    camera.position.set(px + Math.sin(yaw) * back, py + 2.75 + Math.max(0, pitch) * 1.2, pz + Math.cos(yaw) * back);
+    const target = new THREE.Vector3(px - Math.sin(yaw) * 8, py + 1.25 - Math.tan(pitch) * 3.0, pz - Math.cos(yaw) * 8);
     camera.lookAt(target);
   }
 }
@@ -2119,6 +2128,7 @@ const targets = [
   { id:'shelf-milk', label:'رف الألبان', x:5.02, z:-0.55, type:'shelf', product:'milk' },
   { id:'shopping-cart', label:'عربة التسوق', x:6.35, z:4.05, type:'cart' },
   { id:'police-vehicle', label:'سيارة الدورية — اضغط E للقيادة', x:-54, z:43.55, type:'vehicle', job:'police' },
+  { id:'player-home', label:'بيتك الخاص — النوم وتغيير اليوم', x:-17.4, z:37.2, type:'home' },
   { id:'job-mechanic-0', label:'فحص السيارة', x:-59.65, z:10.15, type:'jobTask', job:'mechanic', stepIndex:0, icon:'🔧' },
   { id:'job-mechanic-1', label:'خزانة أدوات الورشة', x:-52.35, z:8.45, type:'jobTask', job:'mechanic', stepIndex:1, icon:'🧰' },
   { id:'job-mechanic-2', label:'اختبار السيارة', x:-54.35, z:10.15, type:'jobTask', job:'mechanic', stepIndex:2, icon:'🚗' },
@@ -2219,6 +2229,7 @@ function interactionLabel(target) {
     return playerCart.length ? `اضغط E للمحاسبة · إجمالي ${moneyFmt(cartTotal())}` : (heldItem ? 'ضع المنتج في العربة أو على الرف أولاً' : `اضغط E عند الكاشير لبيع قطعة ${gameState.inventory[selectedProduct]?.name || 'المنتج'}`);
   }
   if (target.type === 'order') return 'الشراء من زر «شراء بضاعة للمخزن» في لوحة المتجر';
+  if (target.type === 'home') return 'اضغط E للنوم في بيتك وتجاوز الوقت إلى الساعة 06:00 صباحاً';
   if (target.type === 'jobTask') { const flow=JOB_WORKFLOWS[target.job]||[];const step=flow[target.stepIndex];return step?`مهمة ${target.stepIndex+1}/${flow.length}: ${step.title} — اضغط E لإنجاز الخطوة`:`موقع عمل ${(JOBS[target.job]||JOBS.unassigned).label}`; }
   return target.label;
 }
@@ -2228,6 +2239,7 @@ function updateNearestInteraction() {
   const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y = 0;
   if (forward.lengthSq() > 0.0001) forward.normalize();
   for (const t of targets) {
+    if(t.type==='home' && (currentMode!=='solo' && currentMode!=='multi'))continue;
     if (t.type === 'jobTask') {
       if(t.job!==currentJob)continue;
       const wantedStep=jobWorkSession?.job===currentJob?jobWorkSession.step:0;
@@ -2246,7 +2258,7 @@ function updateNearestInteraction() {
     const d = Math.hypot(dx, dz);
     if (d >= min) continue;
     const facing = d > 0.001 ? (dx * forward.x + dz * forward.z) / d : 1;
-    if (facing < 0.12 && t.type !== 'jobTask' && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Job stations are forgiving: walk into the marked area and press E without pixel-perfect aiming.
+    if (facing < 0.12 && t.type !== 'jobTask' && t.type !== 'home' && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Job stations are forgiving: walk into the marked area and press E without pixel-perfect aiming.
     nearest = t; min = d;
   }
   nearestInteraction = nearest;
@@ -2281,10 +2293,26 @@ function nearestVisibleSlot(productKey) {
   const pos = new THREE.Vector3(); visible[0].getWorldPosition(pos);
   return distanceXZ(playerPosition.x, playerPosition.z, pos.x, pos.z) < 3.2 ? visible[0].userData.productSlot : null;
 }
+function sleepAtHome() {
+  if(currentMode==='multi') {
+    if(!socket?.connected)return toast('اتصال الغرفة غير متاح.');
+    socket.emit('home:sleep',{},result=>{if(!result?.ok){toast(result?.error||'تعذّر النوم الآن.');return;}if(result.state)renderState(result.state);if(result.gameMinutes!==undefined)updateClockUi({gameMinutes:result.gameMinutes,day:result.day,storeOpen:false});toast(result.message||'نمت في بيتك وصار الوقت 06:00 صباحاً.');});return;
+  }
+  if(currentMode!=='solo')return toast('ابدأ عالماً أولاً.');
+  gameState=normalizeGameState(gameState);gameState.day=(Number(gameState.day)||1)+1;gameState.gameMinutes=360;gameState.storeManualOverride=null;gameState.storeOpen=false;
+  try{localStorage.setItem(soloStorageKey,JSON.stringify(gameState));}catch{}
+  renderState(gameState);updateJobGuide(gameState,true);toast('نمت في بيتك 🛏️ يوم جديد! الساعة الآن 06:00 صباحاً.');
+}
+function stepJumpPhysics(dt) {
+  if(!active||paused||isDriving){jumpQueued=false;if(isDriving){jumpHeight=0;jumpVelocity=0;}return;}
+  if(jumpQueued&&jumpHeight<=0.001){jumpVelocity=7.1;jumpQueued=false;avatarActionUntil=performance.now()+180;}
+  if(jumpHeight>0||jumpVelocity>0){jumpHeight+=jumpVelocity*dt;jumpVelocity-=18.5*dt;if(jumpHeight<=0){jumpHeight=0;jumpVelocity=0;}}
+}
 function interact() {
   if (!active || paused) return;
-  if (!nearestInteraction) return toast('اقترب من الحاسوب أو الرف أو العربة أو الكاشير للتفاعل.', 1800);
+  if (!nearestInteraction) return toast('اقترب من الحاسوب أو الرف أو العربة أو الكاشير أو بيتك للتفاعل.', 1800);
   const target = nearestInteraction;
+  if(target.type==='home'){sleepAtHome();return;}
   if (target.type === 'jobTask') { performJobTask(target.job,target); return; }
   if (target.type === 'vehicle') { enterPoliceVehicle(); return; }
   if (target.type === 'order') { openPaymentModal('order', selectedProduct); return; }
@@ -2363,6 +2391,7 @@ window.addEventListener('keydown', e => {
   }
   keys[e.code]=true;
   if(!active||paused||e.repeat)return;
+  if(e.code==='Space'){if(!isDriving&&jumpHeight<=0.001)jumpQueued=true;return;}
   if(e.code==='KeyV')setCameraView(cameraView==='first'?'third':'first');
   else if(e.code==='KeyE')interact();
   else if(e.code==='KeyF')pickFocusedProduct();
@@ -2378,7 +2407,7 @@ window.addEventListener('keydown', e => {
   }
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
-window.addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; touchMove.x = 0; touchMove.y = 0; });
+window.addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; touchMove.x = 0; touchMove.y = 0; jumpQueued=false; });
 canvas.addEventListener('click', () => {
   if (!active || paused || ('ontouchstart' in window)) return;
   if (document.pointerLockElement !== canvas && canvas.requestPointerLock) canvas.requestPointerLock();
@@ -2425,6 +2454,7 @@ function animateAvatarModel(avatar,dt,moving,working=false) {
 function animateLocalAvatar(dt,moving) {animateAvatarModel(selfAvatar,dt,moving,performance.now()<avatarActionUntil);}
 function updateMovement(dt) {
   if (!active || paused) { animateLocalAvatar(dt,false); return; }
+  stepJumpPhysics(dt);
   const forward = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - touchMove.y;
   const right = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touchMove.x;
   const len=Math.hypot(forward,right); if (len<0.03) { animateLocalAvatar(dt,false); updateCameraPose(); return; }
