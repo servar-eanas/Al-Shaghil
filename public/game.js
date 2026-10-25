@@ -53,6 +53,16 @@ const JOB_WORKFLOWS = {
 let jobWorkSession = null;
 let avatarWalkPhase = 0;
 let avatarActionUntil = 0;
+const JOB_DETAILS = {
+  shopkeeper:'دكانك الخاص: جهّز الرفوف وخزّن البضاعة وافتح البيع للزبائن',
+  mechanic:'الورشة: افحص المركبة ثم جهّز أدواتك ثم اختبر الإصلاح',
+  it:'مركز التقنية: شخّص عطل الحاسوب ثم أصلحه واختبر تشغيله',
+  electronics:'مركز الإلكترونيات: افحص الجهاز وأصلح الدارة ثم اختبره',
+  delivery:'التوصيل: استلم الطرد واحمله لطاولة الفرز ثم سلّمه عند نقطة التوصيل',
+  police:'الشرطة: أوقف المشتبه به ثم ارجع إلى المركز وسجّل البلاغ',
+  criminal:'مهمة سرية: خذ شحنة الأجهزة واحملها إلى نقطة الهروب',
+  unassigned:'اختر مهنة لتعرف موقعها وخطواتها'
+};
 const defaultGame = () => ({
   schemaVersion: 9, balance: 200, day: 1, gameMinutes: 8*60, storeOpen: true, storeManualOverride: null, level: 1, totalSales: 0, cart: [], cartPose: { x: 6.35, z: 4.05, rot: 0 }, vehiclePose: {x:-8,z:18.6,rot:0},
   capacity: 12, storageLevel: 0, easyStartGranted: true,
@@ -553,6 +563,8 @@ function buildHouse(x, z, width, depth, wallColor, roofColor, type = 'home') {
     box(group, 'street shop sign board', x, 3.23, frontZ + .075, width*.78, .68, .14, mat(`street shop sign ${x}`, names[1]));
     const shopNameSign = labelSprite(names[0], { bg:names[1], color:'#fff8e8', fontSize:39, width:480, height:100 });
     shopNameSign.position.set(x,3.24,frontZ+.24);shopNameSign.scale.set(Math.min(2.7,width*.29),.52,1);shopNameSign.userData.billboard=true;group.add(shopNameSign);
+    const publicLabel = labelSprite('متجر عام · ليس دكان اللاعب', {bg:'#202c2be8',color:'#ffe4b5',fontSize:24,width:480,height:76});
+    publicLabel.position.set(x,1.65,frontZ+.16);publicLabel.scale.set(2.1,.3,1);publicLabel.userData.billboard=true;group.add(publicLabel);
   }
   return group;
 }
@@ -854,7 +866,7 @@ function updateCameraPose() {
     camera.position.set(px, (isDriving ? 1.30 : 1.65) + (isDriving ? 0 : Math.sin(elapsed) * 0.01), pz);
     camera.rotation.order = 'YXZ'; camera.rotation.set(pitch, yaw, 0, 'YXZ');
   } else {
-    const back = 4.3;
+    const back = 5.3;
     camera.position.set(px + Math.sin(yaw) * back, 2.75 + Math.max(0, pitch) * 1.2, pz + Math.cos(yaw) * back);
     const target = new THREE.Vector3(px - Math.sin(yaw) * 8, 1.25 - Math.tan(pitch) * 3.0, pz - Math.cos(yaw) * 8);
     camera.lookAt(target);
@@ -1362,7 +1374,7 @@ function renderJobAssignments() {
     $('jobModalHint').textContent = 'اختَر وظيفة بنفسك؛ يمكنك تبديلها لاحقاً من القائمة، ويتغير الزي حسب المهنة.';
     for (const [id, job] of jobOptions) {
       const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'jobOption' + (currentJob === id ? ' selected' : '');
-      btn.innerHTML = `<span class="jobOptionIcon">${job.icon}</span><span class="jobOptionInfo"><b>${job.label}</b><small>${job.uniform}</small></span><span class="jobOptionCheck">${currentJob === id ? '✓' : 'اختيار'}</span>`;
+      btn.innerHTML = `<span class="jobOptionIcon">${job.icon}</span><span class="jobOptionInfo"><b>${job.label}</b><small>${JOB_DETAILS[id] || job.uniform}</small><small class="jobUniform">الزي: ${job.uniform}</small></span><span class="jobOptionCheck">${currentJob === id ? '✓' : 'اختيار'}</span>`;
       btn.addEventListener('click', () => setSoloJob(id)); list.appendChild(btn);
     }
     return;
@@ -2107,7 +2119,11 @@ const targets = [
 for(const target of targets.filter(t=>t.type==='jobTask')) {
   const step=JOB_WORKFLOWS[target.job]?.[target.stepIndex];
   const marker=labelSprite(`${target.stepIndex+1}. ${step?.title||target.label}`,{bg:'#175d47ee',color:'#f1ffd8',fontSize:27,width:540,height:86});
-  marker.position.set(target.x,2.55,target.z);marker.scale.set(2.0,.34,1);marker.userData.billboard=true;marker.visible=false;scene.add(marker);target.marker=marker;
+  marker.position.set(target.x,2.65,target.z);marker.scale.set(2.45,.42,1);marker.userData.billboard=true;marker.visible=false;scene.add(marker);target.marker=marker;
+  const beacon=new THREE.Group();beacon.name=`job-beacon-${target.id}`;
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.48,2.6,14,1,true),new THREE.MeshBasicMaterial({color:0x58e5a2,transparent:true,opacity:.42,depthWrite:false,side:THREE.DoubleSide}));beam.position.y=1.3;beacon.add(beam);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(.5,.72,28),new THREE.MeshBasicMaterial({color:0x7cffba,transparent:true,opacity:.9,side:THREE.DoubleSide,depthWrite:false}));ring.rotation.x=-Math.PI/2;ring.position.y=.07;beacon.add(ring);
+  beacon.position.set(target.x,0,target.z);beacon.visible=false;scene.add(beacon);target.beacon=beacon;
 }
 function claimShoppingCart() {
   if (!gameState.fixtures?.cart) return toast('العربة غير موجودة بعد؛ اشترها من كتالوج تجهيزات الدكان.');
@@ -2175,7 +2191,7 @@ function interactionLabel(target) {
 }
 function updateNearestInteraction() {
   if (!active || paused) { nearestInteraction = null; $('interactionPrompt').classList.add('hidden'); return; }
-  let min = 3.25, nearest = null;
+  let min = 3.65, nearest = null;
   const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y = 0;
   if (forward.lengthSq() > 0.0001) forward.normalize();
   for (const t of targets) {
@@ -2197,7 +2213,7 @@ function updateNearestInteraction() {
     const d = Math.hypot(dx, dz);
     if (d >= min) continue;
     const facing = d > 0.001 ? (dx * forward.x + dz * forward.z) / d : 1;
-    if (facing < 0.12 && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Easier placement: matching shelf can be selected while carrying its product.
+    if (facing < 0.12 && t.type !== 'jobTask' && !(heldItem && t.type === 'shelf' && t.product === heldItem)) continue; // Job stations are forgiving: walk into the marked area and press E without pixel-perfect aiming.
     nearest = t; min = d;
   }
   nearestInteraction = nearest;
@@ -2205,7 +2221,8 @@ function updateNearestInteraction() {
   for(const t of targets.filter(item=>item.type==='jobTask')) {
     if(!t.marker)continue;
     const activeMarker=t.job===currentJob&&t.stepIndex===stage&&!(t.job==='police'&&t.stepIndex===0&&!robberNpc?.visible)&&!(t.job==='criminal'&&t.stepIndex===0&&!stolenGoodsCrate.visible);
-    t.marker.visible=!!active&&activeMarker;t.marker.position.set(t.x,2.55,t.z);
+    t.marker.visible=!!active&&activeMarker;t.marker.position.set(t.x,2.65,t.z);
+    if(t.beacon){t.beacon.visible=!!active&&activeMarker;t.beacon.position.set(t.x,0,t.z);const pulse=1+Math.sin(performance.now()*.0045)*.06;t.beacon.scale.set(pulse,1,pulse);}
   }
   if (nearest) {
     $('interactionText').textContent = interactionLabel(nearest);
@@ -2372,7 +2389,7 @@ function updateMovement(dt) {
   const right = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + touchMove.x;
   const len=Math.hypot(forward,right); if (len<0.03) { animateLocalAvatar(dt,false); updateCameraPose(); return; }
   const f=forward/Math.max(1,len), r=right/Math.max(1,len);
-  const speed = isDriving ? ((keys.ShiftLeft||keys.ShiftRight) ? 13.5 : 8.4) : ((keys.ShiftLeft||keys.ShiftRight)?6.3:4.2);
+  const speed = isDriving ? ((keys.ShiftLeft||keys.ShiftRight) ? 15.5 : 9.5) : ((keys.ShiftLeft||keys.ShiftRight)?8.1:5.2);
   const dx=(-Math.sin(yaw)*f + Math.cos(yaw)*r)*speed*dt;
   const dz=(-Math.cos(yaw)*f - Math.sin(yaw)*r)*speed*dt;
   const ox=playerPosition.x, oz=playerPosition.z;
