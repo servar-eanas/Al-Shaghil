@@ -1316,7 +1316,7 @@ function clearRemotePlayers() {
   peerConnections.clear(); voiceStates.clear();
 }
 function appendJoinResult(result) {
-  jobWorkSession=null;setJobCarryPackage(false);
+  resetJobWorkSession();
   if (!result?.ok) { toast(result?.error || 'تعذّر الدخول للغرفة.'); return false; }
   roomCode = result.code;
   selfPlayerId = socket?.id || result.self?.id || null;
@@ -1374,7 +1374,7 @@ function updateJobGuide(state = gameState, force = false) {
 function setSoloJob(job) {
   if (!JOBS[job] || job === 'unassigned') return;
   if (currentMode === 'multi') return toast('في اللعب الجماعي، منشئ الغرفة هو الذي يوزّع الوظائف.');
-  currentJob = job; jobWorkSession = null; setJobCarryPackage(false);
+  resetJobWorkSession(); currentJob = job;
   try { localStorage.setItem(soloJobStorageKey, job); } catch {}
   $('jobValue').textContent = `${JOBS[job].icon} ${JOBS[job].label}`;
   refreshSelfAvatar(); renderJobAssignments(); updateJobGuide(gameState, true);
@@ -1513,10 +1513,15 @@ function pulseJobObject(name) {
 function showJobWorkEffect(job,step) {
   const visuals={mechanic:['repair vehicle body','tool cabinet','repair vehicle body'],it:['IT station display','IT station keyboard','IT station display'],electronics:['device under repair','soldering station','device under repair'],delivery:['delivery pallet crate','delivery sorting table','delivery parcel'],police:['police noticeboard','police service desk'],criminal:['electronics shipment crate','shipment label']};
   const name=visuals[job]?.[step];if(name)pulseJobObject(name);
-  if(job==='delivery'&&step===0){const parcel=world.getObjectByName('delivery pallet crate');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}setJobCarryPackage(true,'delivery');}
-  if(job==='delivery'&&step===2){const parcel=deliveryDropoff.getObjectByName('delivery dropoff parcel');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}setJobCarryPackage(false,'delivery');}
-  if(job==='criminal'&&step===0){stolenGoodsCrate.visible=false;window.setTimeout(()=>{stolenGoodsCrate.visible=true;},25000);setJobCarryPackage(true,'criminal');}
-  if(job==='criminal'&&step===1)setJobCarryPackage(false,'criminal');
+  if(job==='delivery'&&step===0){const parcel=world.getObjectByName('delivery pallet crate');if(parcel)parcel.visible=false;setJobCarryPackage(true,'delivery');}
+  if(job==='delivery'&&step===2){const parcel=deliveryDropoff.getObjectByName('delivery dropoff parcel');if(parcel){parcel.visible=false;window.setTimeout(()=>{parcel.visible=true;},25000);}const source=world.getObjectByName('delivery pallet crate');if(source)source.visible=true;setJobCarryPackage(false,'delivery');}
+  if(job==='criminal'&&step===0){stolenGoodsCrate.visible=false;setJobCarryPackage(true,'criminal');}
+  if(job==='criminal'&&step===1){stolenGoodsCrate.visible=true;setJobCarryPackage(false,'criminal');}
+}
+function resetJobWorkSession(){
+  if(jobWorkSession?.job==='delivery'){const parcel=world.getObjectByName('delivery pallet crate');if(parcel)parcel.visible=true;}
+  if(jobWorkSession?.job==='criminal'&&stolenGoodsCrate)stolenGoodsCrate.visible=true;
+  jobWorkSession=null;setJobCarryPackage(false);
 }
 function finishCriminalUniform() {
   if(selfAvatar){scene.remove(selfAvatar);selfAvatar.traverse(o=>{if(o.geometry)o.geometry.dispose();});}
@@ -1597,7 +1602,7 @@ function ensureSocket() {
   socket.on('room:player-updated', p => {
     updateRemoteAvatar(p);
     if (p?.id === selfPlayerId) {
-      const nextJob=p.job||'unassigned';if(nextJob!==currentJob){jobWorkSession=null;setJobCarryPackage(false);}currentJob = nextJob;
+      const nextJob=p.job||'unassigned';if(nextJob!==currentJob)resetJobWorkSession();currentJob = nextJob;
       $('jobValue').textContent = `${(JOBS[currentJob] || JOBS.unassigned).icon} ${(JOBS[currentJob] || JOBS.unassigned).label}`;
       isDriving = !!p.driving; $('vehicleExit').classList.toggle('hidden', !isDriving);
       refreshSelfAvatar();
@@ -1606,7 +1611,7 @@ function ensureSocket() {
   socket.on('room:players', players => {
     roomPlayers = Array.isArray(players) ? players : [];
     const me = roomPlayers.find(p => p.id === selfPlayerId);
-    if (me) { const nextJob=me.job||'unassigned';if(nextJob!==currentJob){jobWorkSession=null;setJobCarryPackage(false);}isRoomHost = !!me.isHost; roomHostId = roomPlayers.find(p => p.isHost)?.id || roomHostId; currentJob = nextJob; refreshSelfAvatar(); }
+    if (me) { const nextJob=me.job||'unassigned';if(nextJob!==currentJob)resetJobWorkSession();isRoomHost = !!me.isHost; roomHostId = roomPlayers.find(p => p.isHost)?.id || roomHostId; currentJob = nextJob; refreshSelfAvatar(); }
     renderJobAssignments(); updateStoreButtonUi(gameState);
   });
   socket.on('vehicle:state', data => {
