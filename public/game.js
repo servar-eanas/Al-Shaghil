@@ -597,7 +597,7 @@ function buildPlayerHome(x,z) {
   box(group,'home roof back beam',x,3.4,z-4.83,9.2,.18,.28,trim);
   box(group,'home roof left beam',x-4.35,3.4,z,.28,.18,9.7,trim);
   box(group,'home roof right beam',x+4.35,3.4,z,.28,.18,9.7,trim);
-  box(group,'home awning',x,3.38,z+5.1,3.15,.16,1.0,mat('home awning','#45785e',.8));
+  box(group,'home awning',x,2.7,z+5.1,3.15,.16,1.0,mat('home awning','#45785e',.8));
   const openDoor=box(group,'home open door',x-1.25,1.1,z+4.83,1.05,2.2,.13,mat('home wooden door','#76533a',.88),{rotation:[0,.78,0]});
   box(group,'home door knob',x-.88,1.1,z+4.55,.065,.065,.06,mat('home door knob','#d8bb70',.4,{metalness:.4}));
   for(const xx of [x-3,x+3]) {
