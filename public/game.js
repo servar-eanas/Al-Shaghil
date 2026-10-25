@@ -2141,12 +2141,14 @@ for(const target of targets.filter(t=>t.type==='jobTask')) {
   beacon.position.set(target.x,0,target.z);beacon.visible=false;scene.add(beacon);target.beacon=beacon;
 }
 const shopkeeperWaypointMarker=labelSprite('هدف دكانك',{bg:'#245442ee',color:'#e6ffbb',fontSize:30,width:450,height:90});shopkeeperWaypointMarker.scale.set(2.45,.43,1);shopkeeperWaypointMarker.userData.billboard=true;shopkeeperWaypointMarker.visible=false;scene.add(shopkeeperWaypointMarker);
+let shopkeeperWaypointCurrentLabel='هدف دكانك';
 const shopkeeperWaypointBeacon=new THREE.Group();
 const shopWaypointBeam=new THREE.Mesh(new THREE.CylinderGeometry(.08,.48,2.6,14,1,true),new THREE.MeshBasicMaterial({color:0x8bd66b,transparent:true,opacity:.46,depthWrite:false,side:THREE.DoubleSide}));shopWaypointBeam.position.y=1.3;shopkeeperWaypointBeacon.add(shopWaypointBeam);
 const shopWaypointRing=new THREE.Mesh(new THREE.RingGeometry(.5,.72,28),new THREE.MeshBasicMaterial({color:0xc1f67a,transparent:true,opacity:.94,side:THREE.DoubleSide,depthWrite:false}));shopWaypointRing.rotation.x=-Math.PI/2;shopWaypointRing.position.y=.07;shopkeeperWaypointBeacon.add(shopWaypointRing);shopkeeperWaypointBeacon.visible=false;scene.add(shopkeeperWaypointBeacon);
 function getShopkeeperWaypoint(state=gameState){
   if(!state?.fixtures?.computer)return null;
   if(heldItem){const index=itemKeys.indexOf(heldItem);if(index>=0&&state.fixtures?.shelves?.[heldItem])return {label:`ضع ${state.inventory?.[heldItem]?.name||'القطعة'} على الرف`,x:shelfXs[index],z:-.55};}
+  if(state.fixtures?.register&&!state.storeOpen)return null;
   for(const key of itemKeys){if(!state.fixtures?.shelves?.[key])continue;const item=state.inventory?.[key];if((Number(item?.stock)||0)>0&&(Number(item?.shelf)||0)<3){const target=targets.find(t=>t.type==='stock'&&t.product===key);if(target)return {label:`خذ ${item?.name||'البضاعة'} من المخزن`,x:target.x,z:target.z};}}
   if(!state.fixtures?.register||!state.storeOpen)return null;
   return {label:'نقطة الكاشير · راقب البيع',x:-5.45,z:-5.15};
@@ -2253,7 +2255,10 @@ function updateNearestInteraction() {
   const ownerWay=currentJob==='shopkeeper'?getShopkeeperWaypoint(gameState):null;
   const ownerWayVisible=!!active&&!!ownerWay;
   shopkeeperWaypointMarker.visible=ownerWayVisible;shopkeeperWaypointBeacon.visible=ownerWayVisible;
-  if(ownerWayVisible){shopkeeperWaypointMarker.position.set(ownerWay.x,2.65,ownerWay.z);shopkeeperWaypointMarker.material.map.needsUpdate=true;const pulse=1+Math.sin(performance.now()*.004)*.05;shopkeeperWaypointBeacon.position.set(ownerWay.x,0,ownerWay.z);shopkeeperWaypointBeacon.scale.set(pulse,1,pulse);shopkeeperWaypointMarker.scale.set(2.45,.43,1);}
+  if(ownerWayVisible){
+    if(ownerWay.label!==shopkeeperWaypointCurrentLabel){const nextLabel=labelSprite(ownerWay.label,{bg:'#245442ee',color:'#e6ffbb',fontSize:30,width:450,height:90});const nextMap=nextLabel.material.map;shopkeeperWaypointMarker.material.map?.dispose();shopkeeperWaypointMarker.material.map=nextMap;shopkeeperWaypointMarker.material.needsUpdate=true;nextLabel.material.dispose();shopkeeperWaypointCurrentLabel=ownerWay.label;}
+    shopkeeperWaypointMarker.position.set(ownerWay.x,2.65,ownerWay.z);const pulse=1+Math.sin(performance.now()*.004)*.05;shopkeeperWaypointBeacon.position.set(ownerWay.x,0,ownerWay.z);shopkeeperWaypointBeacon.scale.set(pulse,1,pulse);shopkeeperWaypointMarker.scale.set(2.45,.43,1);
+  }
   if (nearest) {
     $('interactionText').textContent = interactionLabel(nearest);
     const keyEl = $('interactionKey');
