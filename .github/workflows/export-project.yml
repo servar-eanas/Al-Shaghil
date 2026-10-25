@@ -1,0 +1,61 @@
+name: Export Full Al-Shaghil Project
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "public/**"
+      - "server.js"
+      - "package.json"
+      - "README.md"
+      - "netlify.toml"
+      - "render.yaml"
+      - "_redirects"
+      - ".github/workflows/export-project.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Bundle complete project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cat > RUN-LOCALLY-AR.txt <<'EOF'
+          الشغيل — ملفات المشروع الكاملة
+          
+          تشغيل نسخة المطور محلياً:
+          1) ثبّت Node.js 20 أو أحدث.
+          2) افتح الطرفية داخل مجلد المشروع الذي يحتوي package.json.
+          3) نفّذ: npm install
+          4) نفّذ: npm start
+          5) افتح: http://localhost:3000
+          
+          النشر:
+          - Netlify: مجلد النشر هو public.
+          - Render: Build Command = npm install، Start Command = npm start، Health Check = /health.
+          - وضع اللعب الجماعي يحتاج رابط خادم Render الفعلي داخل إعدادات اللعبة.
+          
+          اختصارات اللعب:
+          WASD للحركة، Space للقفز، Shift للركض، E للتفاعل، V لتبديل المنظور، J للوظائف، H للمساعدة، B لكتالوج التجهيزات.
+          
+          ملاحظة: هذا المشروع نموذج لعبة قيد التطوير؛ اختبره داخل المتصفح قبل اعتباره إصداراً نهائياً.
+          EOF
+          zip -r dist/Al-Shaghil-Full-Project.zip public server.js package.json README.md netlify.toml render.yaml _redirects RUN-LOCALLY-AR.txt
+          sha256sum dist/Al-Shaghil-Full-Project.zip
+
+      - name: Upload project ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: al-shaghil-full-project
+          path: dist/Al-Shaghil-Full-Project.zip
+          if-no-files-found: error
+          retention-days: 30
